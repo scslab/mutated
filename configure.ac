@@ -6,7 +6,7 @@ AC_INIT([latency],[1.0.0],[dterei@cs.stanford.edu])
 AM_INIT_AUTOMAKE([foreign])
 
 # Silent build please
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 # Set sanity check for a source file.
 AC_CONFIG_SRCDIR([client/client.cc])
@@ -26,6 +26,7 @@ AC_SUBST([AM_CXXFLAGS], ["$WARN_FLAGS"])
 AC_SUBST([AR_FLAGS], ["cr"])
 
 # Checks for programs.
+AC_PROG_CC
 AC_PROG_CXX
 AC_LANG([C++])
 AX_CXX_COMPILE_STDCXX_11([noext])
@@ -36,12 +37,10 @@ LT_INIT
 AC_CHECK_HEADERS([event2/listener.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
+AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
-
-# Checks for library functions.
-AC_SEARCH_LIBS([event_base_new],[event])
 
 # Set output files.
 AC_CONFIG_FILES([
@@ -50,4 +49,8 @@ AC_CONFIG_FILES([
   libserver/Makefile
   servers/Makefile
 ])
+
+# Configure sub-packages
+AC_CONFIG_SUBDIRS([libeventm])
+
 AC_OUTPUT

@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = libserver servers client
+SUBDIRS = libeventm libserver servers client 
 
 .PHONY: format clang-scan cppcheck
 

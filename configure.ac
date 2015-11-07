@@ -1,17 +1,15 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
-AC_INIT([project],[1.0.0],[dterei@cs.stanford.edu])
+AC_INIT([latency],[1.0.0],[dterei@cs.stanford.edu])
 
 # Set automake options.
-# `-Wall -Werror` here is for automake warning, nothing to do with src
-# compilation.
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([foreign])
 
 # Silent build please
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # Set sanity check for a source file.
-AC_CONFIG_SRCDIR([bin/app.cc])
+AC_CONFIG_SRCDIR([client/client.cc])
 
 # Set m4 directory.
 AC_CONFIG_MACRO_DIR([m4])
@@ -20,7 +18,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h])
 
 # Set some default CXXFLAGS
-WARN_FLAGS="-pedantic -Wall -Wextra -Weffc++"
+WARN_FLAGS="-pedantic -Wall -Wextra -Weffc++ -g3"
 AC_SUBST([AM_CXXFLAGS], ["$WARN_FLAGS"])
 
 # We set directly (default is 'cru' as 'u' option produces a warning since it's
@@ -35,19 +33,21 @@ AM_PROG_AR
 LT_INIT
 
 # Checks for header files.
-# AC_CHECK_HEADERS([<header file>])
+AC_CHECK_HEADERS([event2/listener.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
-# AC_TYPE_UINT16_T
-# AC_TYPE_UINT32_T
-# AC_TYPE_UINT64_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
 
 # Checks for library functions.
+AC_SEARCH_LIBS([event_base_new],[event])
 
 # Set output files.
 AC_CONFIG_FILES([
   Makefile
-  bin/Makefile
-  libapp/Makefile
+  client/Makefile
+  libserver/Makefile
+  servers/Makefile
 ])
 AC_OUTPUT

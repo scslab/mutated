@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = libapp bin
+SUBDIRS = libserver servers client
 
 .PHONY: format clang-scan cppcheck
 

@@ -4,7 +4,7 @@
 
 #include <errno.h>
 
-#include "common.hh"
+#include "debug.hh"
 #include "generator.hh"
 #include "socket.hh"
 #include "time.hh"

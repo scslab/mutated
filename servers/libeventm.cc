@@ -10,7 +10,7 @@
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 
-#include "common.hh"
+#include "debug.hh"
 #include "protocol.hh"
 #include "workload.hh"
 #include "server_common.hh"

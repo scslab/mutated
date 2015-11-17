@@ -19,7 +19,7 @@
 #include <assert.h>
 
 #include "client.hh"
-#include "common.hh"
+#include "debug.hh"
 #include "protocol.hh"
 #include "time.hh"
 #include "accum.hh"

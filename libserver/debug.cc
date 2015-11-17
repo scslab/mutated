@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "common.hh"
+#include "debug.hh"
 
 void __attribute__((__noreturn__))
 panic(const char *s, ...)

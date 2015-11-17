@@ -11,7 +11,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "common.hh"
+#include "debug.hh"
 #include "protocol.hh"
 #include "workload.hh"
 #include "server_common.hh"

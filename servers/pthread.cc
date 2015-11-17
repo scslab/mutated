@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "common.hh"
+#include "debug.hh"
 #include "protocol.hh"
 #include "workload.hh"
 #include "time.hh"

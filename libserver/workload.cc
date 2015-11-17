@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 
-#include "common.hh"
+#include "debug.hh"
 #include "time.hh"
 #include "workload.hh"
 
@@ -90,8 +90,9 @@ void workload_setup(int lines)
 	dlines = lines * 64;
 
 	w = workload_alloc();
-	if (!w)
+	if (!w) {
 		panic("workload_setup: not enough memory");
+	}
 
 	workload_calibrate(w);
 	free(w);

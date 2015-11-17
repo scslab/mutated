@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 #include "client.hh"
-#include "common.hh"
+#include "debug.hh"
 #include "socket.hh"
 
 void socket_get(struct sock *s)

@@ -17,10 +17,9 @@
 #include <alloca.h>
 #include <unistd.h>
 
+#include "client.hh"
 #include "common.hh"
 #include "socket.hh"
-
-extern int epoll_watch(int fd, void *data, uint32_t events);
 
 void socket_get(struct sock *s)
 {

@@ -10,17 +10,17 @@
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 
+#include "common.hh"
 #include "protocol.hh"
 #include "workload.hh"
 
-static void
-echo_read_cb(struct bufferevent *bev, void *ctx)
+static void echo_read_cb(struct bufferevent *bev, void *ctx UNUSED)
 {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	struct evbuffer *output = bufferevent_get_output(bev);
 	struct req_pkt req;
 	struct resp_pkt resp;
-	struct workload *w;
+	workload *w;
 
 	if (evbuffer_get_length(input) < sizeof(struct req_pkt))
 		return;
@@ -37,8 +37,8 @@ echo_read_cb(struct bufferevent *bev, void *ctx)
 	evbuffer_add(output, &resp, sizeof(resp));
 }
 
-static void
-echo_event_cb(struct bufferevent *bev, short events, void *ctx)
+static void echo_event_cb(struct bufferevent *bev, short events,
+  void *ctx UNUSED)
 {
 	if (events & BEV_EVENT_ERROR)
 		perror("Error from bufferevent");
@@ -47,17 +47,17 @@ echo_event_cb(struct bufferevent *bev, short events, void *ctx)
 	}
 }
 
-static void
-accept_conn_cb(struct evconnlistener *listener,
-    evutil_socket_t fd, struct sockaddr *address, int socklen,
-    void *ctx)
+static void accept_conn_cb(struct evconnlistener *listener,
+    evutil_socket_t fd, struct sockaddr *address UNUSED, int socklen UNUSED,
+    void *ctx UNUSED)
 {
 	int ret, opts = 1;
 	struct event_base *base = evconnlistener_get_base(listener);
-	struct bufferevent *bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	struct bufferevent *bev =
+    bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
 
 	ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
-			 (char *) &opts, sizeof(int));
+	                 (char *) &opts, sizeof(int));
 	if (ret == -1) {
 		perror("setsockopt()");
 		exit(1);
@@ -67,8 +67,7 @@ accept_conn_cb(struct evconnlistener *listener,
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
-static void
-accept_error_cb(struct evconnlistener *listener, void *ctx)
+static void accept_error_cb(struct evconnlistener *listener, void *ctx UNUSED)
 {
 	struct event_base *base = evconnlistener_get_base(listener);
 	int err = EVUTIL_SOCKET_ERROR();
@@ -79,8 +78,7 @@ accept_error_cb(struct evconnlistener *listener, void *ctx)
 	event_base_loopexit(base, NULL);
 }
 
-int
-main(int argc, char **argv)
+int main(void)
 {
 	struct event_base *base;
 	struct evconnlistener *listener;
@@ -100,8 +98,8 @@ main(int argc, char **argv)
 	sin.sin_port = htons(8080);
 
 	listener = evconnlistener_new_bind(base, accept_conn_cb, NULL,
-					   LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, -1,
-					   (struct sockaddr*) &sin, sizeof(sin));
+	                                   LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
+	                                   -1, (struct sockaddr*) &sin, sizeof(sin));
 	if (!listener) {
 		perror("Couldn't create listener");
 		exit(1);

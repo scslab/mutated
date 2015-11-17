@@ -23,9 +23,9 @@ struct sock {
 	int ref_cnt;	/* the reference count */
 	int fd;		/* the file descriptor */
 	unsigned short port;
-	int connected:1;/* is the socket connected? */
-	int rx_rdy:1;	/* ready to read? */
-	int tx_rdy:1;	/* ready to write? */
+	unsigned int connected:1;/* is the socket connected? */
+	unsigned int rx_rdy:1;	/* ready to read? */
+	unsigned int tx_rdy:1;	/* ready to write? */
 	int rx_nrents;	/* number of RX SGs */
 	int tx_nrents;	/* number of TX SGs */
 	struct sg_ent rx_ents[MAX_SGS];

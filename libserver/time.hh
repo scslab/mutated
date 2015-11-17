@@ -16,7 +16,7 @@
  * @us: number of microseconds
  * @t: the storage timespec
  */
-static inline void us_to_timespec(uint64_t us, struct timespec *t)
+inline void us_to_timespec(uint64_t us, struct timespec *t)
 {
 	t->tv_sec = us / USEC;
 	t->tv_nsec = (us - t->tv_sec * USEC) * (NSEC / USEC);
@@ -28,7 +28,7 @@ static inline void us_to_timespec(uint64_t us, struct timespec *t)
  *
  * Returns microseconds.
  */
-static inline uint64_t timespec_to_us(struct timespec *t)
+inline uint64_t timespec_to_us(struct timespec *t)
 {
 	return t->tv_sec * USEC + t->tv_nsec / (NSEC / USEC);
 }
@@ -39,13 +39,13 @@ static inline uint64_t timespec_to_us(struct timespec *t)
  *
  * Returns nanoseconds.
  */
-static inline uint64_t timespec_to_ns(struct timespec *t)
+inline uint64_t timespec_to_ns(struct timespec *t)
 {
 	return t->tv_sec * NSEC + t->tv_nsec;
 }
 
-extern int timespec_subtract(struct timespec *x, struct timespec *y,
-			     struct timespec *result);
-extern void busy_spin(struct timespec *delay);
+int timespec_subtract(struct timespec *x, struct timespec *y,
+                      struct timespec *result);
+void busy_spin(struct timespec *delay);
 
 #endif /* TIME_HH */

@@ -1,8 +1,7 @@
-#include "accum.hh"
-
 #include <algorithm>
-#include <cmath>
 #include <numeric>
+
+#include "accum.hh"
 
 void accum::clear(void)
 {

@@ -7,15 +7,14 @@
 
 #include <cstdint>
 
-struct workload {
-	// ezyang: This name is misleading, it implies "cache line" but
-	// a typical cache line is 4-64 bytes (it's 64 bytes on the
-	// Mavericks).
-	char lines[];
-};
+/**
+ * A 'workload' is just a block of memory we'll touch to simulate a working
+ * sets cache footprint.
+ */
+using workload = char;
 
-extern struct workload *workload_alloc(void);
-extern void workload_run(struct workload *w, uint64_t us);
-extern void workload_setup(int lines);
- 
+void workload_setup(int lines);
+workload *workload_alloc(void);
+void workload_run(workload *w, uint64_t us);
+
 #endif /* WORKLOAD_HH */

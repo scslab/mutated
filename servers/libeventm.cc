@@ -10,18 +10,19 @@
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 
+#include "common.hh"
 #include "protocol.hh"
 #include "workload.hh"
 #include "server_common.hh"
 
 static void
-echo_read_cb(struct bufferevent *bev, void *ctx)
+echo_read_cb(struct bufferevent *bev, void *ctx UNUSED)
 {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	struct evbuffer *output = bufferevent_get_output(bev);
 	struct req_pkt req;
 	struct resp_pkt resp;
-	struct workload *w;
+	workload *w;
 
 	if (evbuffer_get_length(input) < sizeof(struct req_pkt))
 		return;
@@ -39,7 +40,7 @@ echo_read_cb(struct bufferevent *bev, void *ctx)
 }
 
 static void
-echo_event_cb(struct bufferevent *bev, short events, void *ctx)
+echo_event_cb(struct bufferevent *bev, short events, void *ctx UNUSED)
 {
 	if (events & BEV_EVENT_ERROR)
 		perror("Error from bufferevent");
@@ -50,8 +51,8 @@ echo_event_cb(struct bufferevent *bev, short events, void *ctx)
 
 static void
 accept_conn_cb(struct evconnlistener *listener,
-    evutil_socket_t fd, struct sockaddr *address, int socklen,
-    void *ctx)
+    evutil_socket_t fd, struct sockaddr *address UNUSED, int socklen UNUSED,
+    void *ctx UNUSED)
 {
 	int ret, opts = 1;
 	struct event_base *base = evconnlistener_get_base(listener);
@@ -69,7 +70,7 @@ accept_conn_cb(struct evconnlistener *listener,
 }
 
 static void
-accept_error_cb(struct evconnlistener *listener, void *ctx)
+accept_error_cb(struct evconnlistener *listener, void *ctx UNUSED)
 {
 	struct event_base *base = evconnlistener_get_base(listener);
 	int err = EVUTIL_SOCKET_ERROR();
@@ -114,8 +115,7 @@ static void *worker_thread(void *arg)
 	return NULL;
 }
 
-int
-main(int argc, char **argv)
+int main(void)
 {
 	workload_setup(100);
 	create_worker_per_core(worker_thread, false);

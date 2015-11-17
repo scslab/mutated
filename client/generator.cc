@@ -62,14 +62,14 @@ static void read_completion_handler(struct sock *s, void *data, int status)
 int generator_flowperreq::do_request(bool should_measure)
 {
 	int ret;
-	std::exponential_distribution<> d(1 / (double) cfg->service_us);
+	std::exponential_distribution<> d(1 / (double) cfg.service_us);
 	struct sg_ent ent;
 	struct request *req;
 	struct sock *s = socket_alloc();
 	if (!s)
 		return -ENOMEM;
 
-	ret = socket_create(s, cfg->addr, cfg->port);
+	ret = socket_create(s, cfg.addr, cfg.port);
 	if (ret) {
 		panic("socket_create() failed");
 	}

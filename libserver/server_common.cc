@@ -14,51 +14,6 @@
 #include "server_common.hh"
 #include "workload.hh"
 
-/**
- * Does a few common tasks that we expect socket-based servers to
- * want to do.  In particular, it:
- *
- *    - Parses the command line and binds/listens to the right address
- *      (TODO: parsing not actually implemented)
- *
- *    - Calibrates the workload
- */
-int setup_server(int argc, char *argv[]) {
-	struct sockaddr_in s_in;
-	int server_fd, ret, flag = 1;
-
-	server_fd = socket(PF_INET, SOCK_STREAM, 0);
-	if (server_fd == -1) {
-		perror("socket()");
-		exit(1);
-	}
-
-	ret = setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
-			 (char *) &flag, sizeof(int));
-	if (ret) {
-		perror("unable to set reusable address\n");
-	}
-
-	memset(&s_in, 0, sizeof(s_in));
-	s_in.sin_family         = PF_INET;
-	s_in.sin_addr.s_addr    = INADDR_ANY;
-	s_in.sin_port           = htons(8080);
-
-	ret = bind(server_fd, (struct sockaddr*) &s_in, sizeof(s_in));
-	if (ret == -1) {
-		perror("bind()");
-		exit(1);
-	}
-
-	ret = listen(server_fd, SOMAXCONN);
-	if (ret) {
-		perror("listen()");
-		exit(1);
-	}
-
-	return server_fd;
-}
-
 static int get_num_cpus(void)
 {
 	return sysconf(_SC_NPROCESSORS_CONF);
@@ -132,38 +87,4 @@ int create_worker_per_core(void *(*worker_thread) (void *), bool reserve_cpu) {
 	}
 
 	return initial_cpu;
-}
-
-/**
- * Services a workload for a file descriptor.
- */
-void do_workload(int fd)
-{
-	int ret;
-	struct req_pkt req;
-	struct resp_pkt resp;
-	struct workload *w;
-
-	w = workload_alloc();
-	if (!w)
-		panic("do_workload: workload_alloc failed");
-
-	ret = read(fd, (void *) &req, sizeof(req));
-	if (ret != sizeof(req)) {
-		// this could happen if the load generator terminates
-		goto out;
-	}
-
-	workload_run(w, req.delays[0]);
-
-	resp.tag = req.tag;
-	ret = write(fd, (void *) &resp, sizeof(resp));
-	if (ret != sizeof(resp)) {
-		// this could happen if the load generator terminates
-		goto out;
-	}
-
-out:
-	free(w);
-	close(fd);
 }

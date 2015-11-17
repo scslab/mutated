@@ -29,23 +29,23 @@ static inline uint64_t __mm_crc32_u64(uint64_t crc, uint64_t val)
  * is to make sure we are touching different cache lines, not
  * because we /actually/ need randomness.
  */
-static void __attribute__ ((noinline)) __workload_run(struct workload *w, int n)
+static void NOINLINE __workload_run(workload *w, int n)
 {
 	int i;
 
 	for (i = 0; i < n; i++) {
-		w->lines[__mm_crc32_u64(0xDEADBEEF, i) % dlines] = 0x0A;
+		w[__mm_crc32_u64(0xDEADBEEF, i) % dlines] = 0x0A;
 	}
 }
 
-void workload_run(struct workload *w, uint64_t us)
+void workload_run(workload *w, uint64_t us)
 {
 	int n = (int) (iter_per_us * (double) us);
 
 	__workload_run(w, n);
 }
 
-static void workload_calibrate(struct workload *w)
+static void workload_calibrate(workload *w)
 {
 	int ret;
 	struct timespec start, finish, delta;
@@ -78,15 +78,15 @@ static void workload_calibrate(struct workload *w)
 	fprintf(stderr, "calibration: %f iterations / microsecond\n", iter_per_us);
 }
 
-struct workload * workload_alloc(void)
+workload * workload_alloc(void)
 {
 	assert(dlines > 0);
-	return (struct workload *) malloc(sizeof(char) * dlines);
+	return (workload *) malloc(sizeof(char) * dlines);
 }
 
 void workload_setup(int lines)
 {
-	struct workload *w;
+	workload *w;
 	dlines = lines * 64;
 
 	w = workload_alloc();

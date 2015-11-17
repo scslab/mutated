@@ -8,8 +8,14 @@
 #include <cstdint>
 #include <vector>
 
-class accum {
-	public:
+class accum
+{
+private:
+	std::vector<uint64_t> samples;
+
+public:
+	accum(void) : samples{} {}
+
 	void clear(void);
 	void add_sample(uint64_t val);
 
@@ -19,9 +25,6 @@ class accum {
 	uint64_t min(void);
 	uint64_t max(void);
 	std::vector<uint64_t>::size_type size(void);
-
-	private:
-	std::vector<uint64_t> samples;
 };
 
 #endif /* ACCUM_HH */

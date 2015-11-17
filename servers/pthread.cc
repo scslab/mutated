@@ -17,7 +17,7 @@
 static void do_work(struct req_pkt *req)
 {
 	int i;
-	struct workload *w;
+	workload *w;
 	struct timespec ts;
 
 	w = workload_alloc();

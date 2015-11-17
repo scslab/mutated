@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <assert.h>
 
+#include "client.hh"
 #include "common.hh"
 #include "protocol.hh"
 #include "time.hh"
@@ -171,8 +172,7 @@ static void socket_lb_create(struct sock *s)
 }
 #endif
 
-void
-record_sample(uint64_t service_us, uint64_t wait_us, bool should_measure)
+void record_sample(uint64_t service_us, uint64_t wait_us, bool should_measure)
 {
 	if (should_measure) {
 		measure_count++;
@@ -461,7 +461,7 @@ int main(int argc, char *argv[])
 		printf("#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax\n");
 	}
 
-	gen = new generator_flowperreq(&cfg);
+	gen = new generator_flowperreq(cfg);
 	if (!gen)
 		exit(1);
 

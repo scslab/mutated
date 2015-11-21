@@ -28,16 +28,16 @@ void socket_get(struct sock *s)
 
 static void __socket_free(struct sock *s)
 {
-	int i;
-
-	for (i = 0; i < s->rx_nrents; i++) {
-		if (s->rx_ents[i].complete)
+	for (int i = 0; i < s->rx_nrents; i++) {
+		if (s->rx_ents[i].complete) {
 			s->rx_ents[i].complete(s, s->rx_ents[i].data, -EIO);
+		}
 	}
 
-	for (i = 0; i < s->tx_nrents; i++) {
-		if (s->tx_ents[i].complete)
+	for (int i = 0; i < s->tx_nrents; i++) {
+		if (s->tx_ents[i].complete) {
 			s->tx_ents[i].complete(s, s->tx_ents[i].data, -EIO);
+		}
 	}
 
 	// Explicitly send a FIN
@@ -64,8 +64,9 @@ static void __socket_free(struct sock *s)
 
 void socket_put(struct sock *s)
 {
-	if (!(--s->ref_cnt))
+	if (!(--s->ref_cnt)) {
 		__socket_free(s);
+	}
 }
 
 static int socket_rx(struct sock *s)
@@ -75,8 +76,9 @@ static int socket_rx(struct sock *s)
 	struct iovec *iov = (struct iovec *) alloca(sizeof(struct iovec) * s->tx_nrents);
 
 	/* is anything pending for read? */
-	if (!s->rx_nrents)
+	if (!s->rx_nrents) {
 		return 0;
+	}
 
 	for (i = 0; i < s->rx_nrents; i++) {
 		iov[i].iov_base = s->rx_ents[i].buf;

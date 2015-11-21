@@ -1,7 +1,11 @@
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 
 #include "accum.hh"
+
+// TODO: Reserve space?
+// TODO: Sort once?
 
 void accum::clear(void)
 {

@@ -42,7 +42,7 @@ static double step_pos = 0;
 static uint64_t step_count = 0;
 static uint64_t total_samples;
 
-static struct config cfg;
+static struct Config cfg;
 
 static int epollfd;
 static int timerfd;
@@ -339,98 +339,10 @@ static int cpu_pin(unsigned int cpu)
 	return 0;
 }
 
-static void parse_args(int argc, char *argv[])
-{
-	int ret, workers, steps;
-
-	// default config
-	cfg.pre_samples = 100;
-	cfg.samples = 1000;
-	cfg.post_samples = 100;
-	cfg.label = "default";
-	cfg.lb_cnt = 1;
-
-	opterr = 0;
-	int c;
-	while ((c = getopt(argc, argv, "hbmw:s:c:l:n:")) != -1) {
-		switch (c) {
-		case 'h':
-			goto help;
-		case 'm':
-			cfg.machine_readable = true;
-			break;
-		case 'w':
-			cfg.pre_samples = atoi(optarg);
-			break;
-		case 's':
-			cfg.samples = atoi(optarg);
-			break;
-		case 'c':
-			cfg.post_samples = atoi(optarg);
-			break;
-		case 'n':
-			cfg.lb_cnt = atoi(optarg);
-			break;
-		case 'b':
-			cfg.least_loaded = true;
-			break;
-		case 'l':
-			cfg.label = optarg;
-			break;
-		default:
-			goto fail;
-		}
-	}
-
-	if (argc - optind != 4)
-		goto fail;
-
-	ret = sscanf(argv[optind+0], "%[^:]:%hu", cfg.addr, &cfg.port);
-	if (ret != 2)
-		goto fail;
-	ret = sscanf(argv[optind+1], "%d", &workers);
-	if (ret != 1)
-		goto fail;
-	if (workers <= 0)
-		goto fail;
-	ret = sscanf(argv[optind+2], "%d", &steps);
-	if (ret != 1)
-		goto fail;
-	if (steps <= 0)
-		goto fail;
-	ret = sscanf(argv[optind+3], "%lf", &cfg.service_us);
-	if (ret != 1)
-		goto fail;
-
-	cfg.step_size = (double) USEC / cfg.service_us / steps * workers;
-	cfg.step_stop = (double) ceil(USEC / cfg.service_us * workers);
-
-	total_samples = cfg.pre_samples + cfg.samples + cfg.post_samples;
-	deadlines = (struct timespec *) malloc(sizeof(struct timespec) * total_samples);
-	if (!deadlines)
-		exit(1);
-
-	return;
-
-fail:
-	fprintf(stderr, "invalid arguments\n");
-help:
-	fprintf(stderr, "usage: %s [-h] [-m] [-w integer] [-s integer] [-c integer] ip:port workers steps service_mean_us\n", argv[0]);
-	fprintf(stderr, "  -h: help\n");
-	fprintf(stderr, "  -m: machine-readable\n");
-	fprintf(stderr, "  -w: warm-up sample count\n");
-	fprintf(stderr, "  -s: measurement sample count\n");
-	fprintf(stderr, "  -c: cool-down sample count\n");
-	fprintf(stderr, "  -l: label for machine-readable output (-m)\n");
-
-	exit(1);
-}
-
 int main(int argc, char *argv[])
 {
 	int ret;
-
-	parse_args(argc, argv);
+	cfg = Config(argc, argv);
 
 	ret = cpu_pin(0);
 	if (ret)

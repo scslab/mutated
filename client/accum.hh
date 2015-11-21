@@ -14,7 +14,7 @@ private:
 	std::vector<uint64_t> samples;
 
 public:
-  using size_type = std::vector<uint64_t>::size_type;
+	using size_type = std::vector<uint64_t>::size_type;
 
 	accum(void) : samples{} {}
 

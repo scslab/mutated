@@ -261,15 +261,16 @@ int socket_create(struct sock *s, const char *addr, unsigned short port)
 	}
 
 	/* make the socket nonblocking */
-	opts = fcntl(fd, F_GETFL);
-	if (opts < 0) {
+	if ((opts = fcntl(fd, F_GETFL)) < 0) {
 		perror("fcntl(F_GETFL)");
-		goto err;
+    close(fd);
+    return -1;
 	}
 	opts = (opts | O_NONBLOCK);
 	if (fcntl(fd, F_SETFL, opts) < 0) {
 		perror("fcntl(F_SETFL)");
-		goto err;
+    close(fd);
+    return -1;
 	}
 
 	bzero(&saddr, sizeof(saddr));
@@ -280,32 +281,30 @@ int socket_create(struct sock *s, const char *addr, unsigned short port)
 	ret = connect(fd, (struct sockaddr *) &saddr, sizeof(saddr));
 	if (ret == -1 && errno != EINPROGRESS) {
 		perror("connect()");
-		goto err;
+    close(fd);
+    return -1;
 	}
 
 	/* disable TCP nagle algorithm (for lower latency) */
 	opts = 1;
-        ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
-                         (char *) &opts, sizeof(int));
-        if (ret == -1) {
-                perror("setsockopt(TCP_NODELAY)");
-                goto err;
-        }
+  ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &opts, sizeof(int));
+  if (ret == -1) {
+    perror("setsockopt(TCP_NODELAY)");
+    close(fd);
+    return -1;
+  }
 
 	/* register for epoll events on this socket */
-	ret = epoll_watch(fd, s, EPOLLIN | EPOLLOUT);
-	if (ret < 0) {
-		goto err;
+	if (client_->epoll_watch(fd, s, EPOLLIN | EPOLLOUT)) {
+		perror("epoll_watch");
+    close(fd);
+    return -1;
 	}
 
 	s->fd = fd;
 	s->port = port;
 
 	return 0;
-
-err:
-	close(fd);
-	return -errno;
 }
 
 struct sock *socket_alloc(void)

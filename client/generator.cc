@@ -4,13 +4,14 @@
 
 #include <errno.h>
 
+#include "client.hh"
 #include "debug.hh"
 #include "generator.hh"
 #include "socket.hh"
 #include "time.hh"
 #include "protocol.hh"
 
-int generator_flowperreq::start(void)
+int generator::start(void)
 {
 	return 0;
 }
@@ -53,39 +54,38 @@ static void read_completion_handler(struct sock *s, void *data, int status)
 	else
 		wait_us = 0;
 
-	record_sample(service_us, wait_us, req->should_measure);
+	client_->record_sample(service_us, wait_us, req->should_measure);
 
 	delete req;
 	socket_put(s);
 }
 
-int generator_flowperreq::do_request(bool should_measure)
+int generator::do_request(bool should_measure)
 {
-	int ret;
-	std::exponential_distribution<> d(1 / (double) cfg.service_us);
+	std::exponential_distribution<> d(1 / (double) client_->cfg.service_us);
 	struct sg_ent ent;
 	struct request *req;
 	struct sock *s = socket_alloc();
-	if (!s)
+	if (!s) {
 		return -ENOMEM;
+  }
 
-	ret = socket_create(s, cfg.addr, cfg.port);
-	if (ret) {
+	if (socket_create(s, client_->cfg.addr, client_->cfg.port)) {
 		panic("socket_create() failed");
 	}
 
 	req = new request();
-	if (!req)
+	if (!req) {
 		return -ENOMEM;
+  }
 
-        ret = clock_gettime(CLOCK_MONOTONIC, &req->start_ts);
-        if (ret == -1) {
-                perror("clock_gettime()");
-                return -errno;
-        }
+  if (clock_gettime(CLOCK_MONOTONIC, &req->start_ts) < 0) {
+    perror("clock_gettime()");
+    return -errno;
+  }
 
 	req->should_measure = should_measure;
-	req->service_us = ceil(d(randgen));
+	req->service_us = ceil(d(client_->randgen));
 	req->req.nr = 1;
 	req->req.tag = (uint64_t) req;
 	req->req.delays[0] = req->service_us;

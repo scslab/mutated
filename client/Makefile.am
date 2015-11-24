@@ -6,7 +6,6 @@ bin_PROGRAMS = client
 client_SOURCES = \
 	accum.hh accum.cc \
 	client.hh client.cc \
-	client2.hh client2.cc \
 	generator.hh generator.cc \
 	main.cc \
 	opts.hh opts.cc \

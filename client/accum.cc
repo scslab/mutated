@@ -6,6 +6,7 @@
 
 // TODO: Reserve space?
 // TODO: Sort once?
+// TODO: Histogram rather than all samples?
 
 void accum::clear(void)
 {

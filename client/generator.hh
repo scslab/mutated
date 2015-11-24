@@ -9,6 +9,7 @@
 #include <random>
 
 #include "client.hh"
+#include "opts.hh"
 
 struct config {
 	char addr[128];		     /* the server address */
@@ -44,10 +45,10 @@ public:
 class generator_flowperreq : public generator
 {
 protected:
-	const struct config & cfg;
+	const Config & cfg;
 
 public:
-	generator_flowperreq(const struct config & cfg)
+	generator_flowperreq(const Config & cfg)
 		: cfg{cfg} {};
 
 	/* No copy or move */

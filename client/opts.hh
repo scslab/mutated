@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-class Config
+struct Config
 {
 public:
 	char addr[128];         /* the server address */
@@ -27,6 +27,7 @@ public:
 	bool least_loaded;
 
 public:
+  Config(void);
 	Config(int argc, char *argv[]);
 };
 

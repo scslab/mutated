@@ -19,7 +19,7 @@ struct sg_ent {
 
 #define MAX_SGS 64
 
-class sock {
+struct sock {
 	int ref_cnt;              /* the reference count */
 	int fd;                   /* the file descriptor */
 	unsigned short port;

@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+/**
+ * Command line parser for mutated.
+ */
 struct Config
 {
 public:
@@ -27,7 +30,6 @@ public:
 	bool least_loaded;
 
 public:
-  Config(void);
 	Config(int argc, char *argv[]);
 };
 

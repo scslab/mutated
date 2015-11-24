@@ -10,7 +10,7 @@
  */
 struct Client
 {
-public:
+private:
   Config cfg;
 
   generator *gen;
@@ -38,6 +38,13 @@ public:
 	void setup_deadlines(void);
   void setup_experiment(void);
 	void print_summary(void);
+
+public:
+  /* TODO: Fix this interface */
+  int port(void) { return cfg.port; }
+  char *addr(void) { return cfg.addr; }
+  uint64_t service_us(void) { return cfg.service_us; }
+  std::mt19937 & get_randgen(void) { return randgen; }
 
 public:
 	/* Create a new client */

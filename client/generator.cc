@@ -62,7 +62,7 @@ static void read_completion_handler(struct sock *s, void *data, int status)
 
 int generator::do_request(bool should_measure)
 {
-	std::exponential_distribution<> d(1 / (double) client_->cfg.service_us);
+	std::exponential_distribution<> d(1 / (double) client_->service_us());
 	struct sg_ent ent;
 	struct request *req;
 	struct sock *s = socket_alloc();
@@ -70,7 +70,7 @@ int generator::do_request(bool should_measure)
 		return -ENOMEM;
   }
 
-	if (socket_create(s, client_->cfg.addr, client_->cfg.port)) {
+	if (socket_create(s, client_->addr(), client_->port())) {
 		panic("socket_create() failed");
 	}
 
@@ -85,7 +85,7 @@ int generator::do_request(bool should_measure)
   }
 
 	req->should_measure = should_measure;
-	req->service_us = ceil(d(client_->randgen));
+	req->service_us = ceil(d(client_->get_randgen()));
 	req->req.nr = 1;
 	req->req.tag = (uint64_t) req;
 	req->req.delays[0] = req->service_us;

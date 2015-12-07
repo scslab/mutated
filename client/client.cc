@@ -75,7 +75,8 @@ void Client::run(void)
 			if (!ev->data.ptr) {
 				timer_handler();
 			} else {
-				socket_handler((struct sock *) ev->data.ptr, ev->events);
+				Sock *s = (Sock *) ev->data.ptr;
+				s->handler(ev->events);
 			}
 		}
 	}

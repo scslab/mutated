@@ -24,7 +24,7 @@ struct request {
 	struct resp_pkt resp;
 };
 
-static void read_completion_handler(struct sock *s, void *data, int status)
+static void read_completion_handler(Sock *s, void *data, int status)
 {
 	struct resp_pkt *resp = (struct resp_pkt *) data;
 	struct request *req = (struct request *) resp->tag;
@@ -57,7 +57,7 @@ static void read_completion_handler(struct sock *s, void *data, int status)
 	client_->record_sample(service_us, wait_us, req->should_measure);
 
 	delete req;
-	socket_put(s);
+  s->put();
 }
 
 int generator::do_request(bool should_measure)
@@ -65,13 +65,13 @@ int generator::do_request(bool should_measure)
 	std::exponential_distribution<> d(1 / (double) client_->service_us());
 	struct sg_ent ent;
 	struct request *req;
-	struct sock *s = socket_alloc();
+	Sock *s = new Sock();
 	if (!s) {
 		return -ENOMEM;
   }
 
-	if (socket_create(s, client_->addr(), client_->port())) {
-		panic("socket_create() failed");
+	if (s->connect(client_->addr(), client_->port())) {
+		panic("Sock::connect() failed");
 	}
 
 	req = new request();
@@ -93,7 +93,7 @@ int generator::do_request(bool should_measure)
 	ent.buf = (char *) &req->req;
 	ent.len = sizeof(struct req_pkt);
 	ent.complete = NULL;
-	if (socket_write(s, &ent)) {
+	if (s->write(&ent)) {
 		fprintf(stderr, "ran out of tx buffers\n");
 		return -ENOSPC;
 	}
@@ -102,7 +102,7 @@ int generator::do_request(bool should_measure)
 	ent.len = sizeof(struct resp_pkt);
 	ent.data = (void *) &req->resp;
 	ent.complete = &read_completion_handler;
-	if (socket_read(s, &ent)) {
+	if (s->read(&ent)) {
 		fprintf(stderr, "ran out of rx buffers\n");
 		return -ENOSPC;
 	}

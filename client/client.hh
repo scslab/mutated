@@ -76,6 +76,7 @@ public:
 	void record_sample(uint64_t service_us, uint64_t wait_us, bool should_measure);
 };
 
+// TODO: Fix this.
 extern Client * client_;
 
 #endif /* MUTATED_CLIENT2_HH */

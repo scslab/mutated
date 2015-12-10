@@ -1,5 +1,5 @@
-#ifndef OPTS_HH
-#define OPTS_HH
+#ifndef MUTATED_OPTS_HH
+#define MUTATED_OPTS_HH
 
 #include <cstdint>
 
@@ -33,4 +33,4 @@ public:
 	Config(int argc, char *argv[]);
 };
 
-#endif /* OPTS_HH */
+#endif /* MUTATED_OPTS_HH */

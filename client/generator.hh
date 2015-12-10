@@ -1,5 +1,5 @@
-#ifndef GENERATOR_HH
-#define GENERATOR_HH
+#ifndef MUTATED_GENERATOR_HH
+#define MUTATED_GENERATOR_HH
 
 /**
  * generator.h - support for load generators
@@ -27,4 +27,4 @@ public:
 	void do_request(bool should_measure);
 };
 
-#endif /* GENERATOR_HH */
+#endif /* MUTATED_GENERATOR_HH */

@@ -1,5 +1,5 @@
-#ifndef ACCUM_HH
-#define ACCUM_HH
+#ifndef MUTATED_ACCUM_HH
+#define MUTATED_ACCUM_HH
 
 /**
  * acumm.h - an accumulator utility
@@ -29,4 +29,4 @@ public:
 	size_type size(void);
 };
 
-#endif /* ACCUM_HH */
+#endif /* MUTATED_ACCUM_HH */

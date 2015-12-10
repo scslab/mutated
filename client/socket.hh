@@ -1,5 +1,5 @@
-#ifndef SOCKET_HH
-#define SOCKET_HH
+#ifndef MUTATED_SOCKET_HH
+#define MUTATED_SOCKET_HH
 
 /**
  * socket.h - async socket I/O support
@@ -70,4 +70,4 @@ public:
 	void put(void); /* Release a reference */
 };
 
-#endif /* SOCKET_HH */
+#endif /* MUTATED_SOCKET_HH */

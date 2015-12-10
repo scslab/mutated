@@ -61,9 +61,6 @@ int generator::do_request(bool should_measure)
 	struct sg_ent ent;
 	struct request *req;
 	Sock *s = new Sock();
-	if (!s) {
-		return -ENOMEM;
-	}
 
 	s->connect(client_->addr(), client_->port());
 
@@ -93,6 +90,9 @@ int generator::do_request(bool should_measure)
 	ent.data = (void *) &req->resp;
 	ent.complete = &read_completion_handler;
 	s->read(&ent);
+
+	// XXX: Seems like a memory-leak of 's' here, but we are still using it in
+	// the 'read_completion_handler' (and using reference counts to track).
 
 	return 0;
 }

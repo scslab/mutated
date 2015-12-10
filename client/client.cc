@@ -45,10 +45,7 @@ Client::Client(int argc, char *argv[])
       "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax\n");
 	}
 
-	if (gen->start()) {
-		perror("failed to start generator");
-		exit(1);
-	}
+	gen->start();
 }
 
 /* Destructor */

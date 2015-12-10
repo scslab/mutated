@@ -11,23 +11,23 @@
 struct Client
 {
 private:
-  Config cfg;
+	Config cfg;
 
-  generator *gen;
-  std::random_device rd;
-  std::mt19937 randgen;
+	generator *gen;
+	std::random_device rd;
+	std::mt19937 randgen;
 
-  accum service_samples;
-  accum wait_samples;
-  double throughput;
+	accum service_samples;
+	accum wait_samples;
+	double throughput;
 
-  struct timespec start_ts;
-  uint64_t in_count, out_count, measure_count;
-  double step_pos;
-  uint64_t step_count;
+	struct timespec start_ts;
+	uint64_t in_count, out_count, measure_count;
+	double step_pos;
+	uint64_t step_count;
 
-  int epollfd;
-  int timerfd;
+	int epollfd;
+	int timerfd;
 
 	struct timespec *deadlines;
 	struct timespec start_time;
@@ -40,24 +40,24 @@ private:
 	void print_summary(void);
 
 public:
-  /* TODO: Fix this interface */
-  int port(void) { return cfg.port; }
-  char *addr(void) { return cfg.addr; }
-  uint64_t service_us(void) { return cfg.service_us; }
-  std::mt19937 & get_randgen(void) { return randgen; }
+	/* TODO: Fix this interface */
+	int port(void) { return cfg.port; }
+	char *addr(void) { return cfg.addr; }
+	uint64_t service_us(void) { return cfg.service_us; }
+	std::mt19937 & get_randgen(void) { return randgen; }
 
 public:
 	/* Create a new client */
-  Client(int argc, char *argv[]);
+	Client(int argc, char *argv[]);
 
-  /* Destructor */
-  ~Client(void);
+	/* Destructor */
+	~Client(void);
 
-  /* No copy or move */
-  Client(const Client &) = delete;
-  Client(Client &&) = delete;
-  Client & operator=(const Client &) = delete;
-  Client & operator=(Client &&) = delete;
+	/* No copy or move */
+	Client(const Client &) = delete;
+	Client(Client &&) = delete;
+	Client & operator=(const Client &) = delete;
+	Client & operator=(Client &&) = delete;
 
 	/**
 	 * epoll_watch - registers a file descriptor for epoll events

@@ -38,9 +38,9 @@ private:
 	struct sg_ent tx_ents[MAX_SGS];
 
 	/* Low-level recv */
-	int rx(void);
+	void rx(void);
 	/* Low-level send */
-	int tx(void);
+	void tx(void);
 
 public:
 	/* Constructor */
@@ -56,11 +56,11 @@ public:
 	Sock operator=(Sock &&) = delete;
 
 	/* Open a new remote connection */
-	int connect(const char *addr, unsigned short port);
+	void connect(const char *addr, unsigned short port);
 
 	/* Read and write (vector IO support) */
-	int read(struct sg_ent *ent);
-	int write(struct sg_ent *ent);
+	void read(struct sg_ent *ent);
+	void write(struct sg_ent *ent);
 
 	void handler(uint32_t events);
 

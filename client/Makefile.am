@@ -9,4 +9,5 @@ client_SOURCES = \
 	generator.hh generator.cc \
 	main.cc \
 	opts.hh opts.cc \
-	socket.hh socket.cc
+	socket.hh socket.cc \
+	utils.hh utils.cc

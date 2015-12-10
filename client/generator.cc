@@ -11,16 +11,11 @@
 #include "time.hh"
 #include "protocol.hh"
 
-int generator::start(void)
-{
-	return 0;
-}
-
 struct request {
-	bool		should_measure;
-	struct		timespec start_ts;
-	uint64_t	service_us;
-	struct req_pkt	req;
+	bool            should_measure;
+	struct timespec start_ts;
+	uint64_t        service_us;
+	struct req_pkt  req;
 	struct resp_pkt resp;
 };
 
@@ -57,7 +52,7 @@ static void read_completion_handler(Sock *s, void *data, int status)
 	client_->record_sample(service_us, wait_us, req->should_measure);
 
 	delete req;
-  s->put();
+	s->put();
 }
 
 int generator::do_request(bool should_measure)
@@ -68,21 +63,19 @@ int generator::do_request(bool should_measure)
 	Sock *s = new Sock();
 	if (!s) {
 		return -ENOMEM;
-  }
-
-	if (s->connect(client_->addr(), client_->port())) {
-		panic("Sock::connect() failed");
 	}
+
+	s->connect(client_->addr(), client_->port());
 
 	req = new request();
 	if (!req) {
 		return -ENOMEM;
-  }
+	}
 
-  if (clock_gettime(CLOCK_MONOTONIC, &req->start_ts) < 0) {
-    perror("clock_gettime()");
-    return -errno;
-  }
+	if (clock_gettime(CLOCK_MONOTONIC, &req->start_ts) < 0) {
+		perror("clock_gettime()");
+		return -errno;
+	}
 
 	req->should_measure = should_measure;
 	req->service_us = ceil(d(client_->get_randgen()));
@@ -93,19 +86,13 @@ int generator::do_request(bool should_measure)
 	ent.buf = (char *) &req->req;
 	ent.len = sizeof(struct req_pkt);
 	ent.complete = NULL;
-	if (s->write(&ent)) {
-		fprintf(stderr, "ran out of tx buffers\n");
-		return -ENOSPC;
-	}
+	s->write(&ent);
 
 	ent.buf = (char *) &req->resp;
 	ent.len = sizeof(struct resp_pkt);
 	ent.data = (void *) &req->resp;
 	ent.complete = &read_completion_handler;
-	if (s->read(&ent)) {
-		fprintf(stderr, "ran out of rx buffers\n");
-		return -ENOSPC;
-	}
+	s->read(&ent);
 
 	return 0;
 }

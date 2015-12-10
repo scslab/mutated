@@ -3,8 +3,7 @@
 
 #include "debug.hh"
 
-void __attribute__((__noreturn__))
-panic(const char *s, ...)
+void NORETURN panic(const char *s, ...)
 {
 	va_list ap;
 	va_start(ap, s);
@@ -13,6 +12,7 @@ panic(const char *s, ...)
 	fprintf(stderr, "\n");
 	fflush(stderr);
 	va_end(ap);
+
 	// Drop us into GDB, if applicable
 	abort();
 }

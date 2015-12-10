@@ -13,7 +13,7 @@
 class generator
 {
 public:
-  /* Constructor */
+	/* Constructor */
 	generator(void) {}
 
 	/* No copy or move */
@@ -22,8 +22,8 @@ public:
 	generator & operator=(const generator &) = delete;
 	generator & operator=(generator &&) = delete;
 
-  /* Generate requests */
-	int start(void);
+	/* Generate requests */
+	void start(void) {};
 	int do_request(bool should_measure);
 };
 

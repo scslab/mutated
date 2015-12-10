@@ -5,14 +5,15 @@
 
 #include "opts.hh"
 
-#define USEC	1000000
-
 using namespace std;
+
+/* Microseconds in a second. */
+static constexpr double USEC = 1000000;
 
 /**
  * Print usage message and exit with status.
  */
-static void printUsage(string prog, int status)
+static void __printUsage(string prog, int status)
 {
 	if (status != EXIT_SUCCESS) {
 		cerr << "invalid arguments!" << endl << endl;
@@ -46,7 +47,7 @@ Config::Config(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "hbmw:s:c:l:n:")) != -1) {
 		switch (c) {
 		case 'h':
-			printUsage(argv[0], EXIT_SUCCESS);
+			__printUsage(argv[0], EXIT_SUCCESS);
 		case 'm':
 			machine_readable = true;
 			break;
@@ -69,36 +70,36 @@ Config::Config(int argc, char *argv[])
 			label = optarg;
 			break;
 		default:
-			printUsage(argv[0], EXIT_FAILURE);
+			__printUsage(argv[0], EXIT_FAILURE);
 		}
 	}
 
 	if (argc - optind != 4) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
 	ret = sscanf(argv[optind+0], "%[^:]:%hu", addr, &port);
 	if (ret != 2) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
 	ret = sscanf(argv[optind+1], "%d", &workers);
 	if (ret != 1) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	} else if (workers <= 0) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
 	ret = sscanf(argv[optind+2], "%d", &steps);
 	if (ret != 1) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	} else if (steps <= 0) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
 	ret = sscanf(argv[optind+3], "%lf", &service_us);
 	if (ret != 1) {
-		printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
 	step_size = (double) USEC / service_us / steps * workers;

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
@@ -5,6 +7,9 @@
 #include "client.hh"
 #include "socket.hh"
 #include "time.hh"
+#include "util.hh"
+
+using namespace std;
 
 Client * client_;
 
@@ -15,65 +20,55 @@ Client::Client(int argc, char *argv[])
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, step_pos{0}, step_count{0}
 	, epollfd{-1}, timerfd{-1}
-	, deadlines{(struct timespec *) malloc(sizeof(struct timespec) * cfg.total_samples)}
+	, deadlines{(timespec *) malloc(sizeof(timespec) * cfg.total_samples)}
 	, start_time{}
 {
-	if ((epollfd = epoll_create1(0)) < 0) {
-		perror("epoll_create()");
-		exit(1);
-	}
+	epollfd = SystemCall(
+		epoll_create1(0),
+		"Client::Client: epoll_create1()");
 
-	if ((timerfd = timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK)) < 0) {
-		perror("timerfd_create()");
-		exit(1);
-	}
+	timerfd = SystemCall(
+		timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
+		"Client::Client: timerfd_create()");
 
-	if (epoll_watch(timerfd, NULL, EPOLLIN) < 0) {
-		perror("epoll_watch");
-		exit(1);
-	}
+	epoll_watch(timerfd, NULL, EPOLLIN);
 
-	// TODO: also support detailed sample information
-	// NB: Keep this up to date with print_summary()
-	if (cfg.machine_readable) {
-		printf("label\tservice_us\tarrival_us\tstep_count\trequests_per_sec"
-      "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_stddev"
-      "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-      "\twait_stddev\twait_99th\twait_99.9th\twait_max\n");
-	} else {
-		printf("#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-      "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax\n");
-	}
 
+	print_header();
 	gen->start();
 }
 
 /* Destructor */
 Client::~Client(void)
 {
+	// TODO: Implement.
 }
 
-#define MAX_EVENTS	1000
-
+/**
+ * Run a client, generate load and measure repsonse times.
+ */
 void Client::run(void)
 {
-	int nfds, i;
-	struct epoll_event events[MAX_EVENTS];
+	/* Maximum outstanding epoll events supported. */
+	constexpr size_t MAX_EVENTS = 1000;
+	epoll_event events[MAX_EVENTS];
 
 	setup_experiment();
 
 	while (true) {
-		nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+		int nfds = SystemCall(
+			epoll_wait(epollfd, events, MAX_EVENTS, -1),
+			"Client::run: epoll_wait()");
 
-		for (i = 0; i < nfds; i++) {
-			struct epoll_event *ev = &events[i];
+		for (int i = 0; i < nfds; i++) {
+			epoll_event &ev = events[i];
 
 			/* is it a timer? */
-			if (!ev->data.ptr) {
+			if (ev.data.ptr == nullptr) {
 				timer_handler();
 			} else {
-				Sock *s = (Sock *) ev->data.ptr;
-				s->handler(ev->events);
+				Sock *s = (Sock *) ev.data.ptr;
+				s->handler(ev.events);
 			}
 		}
 	}
@@ -84,15 +79,15 @@ void Client::run(void)
  * @fd: the file descriptor
  * @data: a cookie for the event
  * @event: the event mask
- *
- * Returns 0 if successful, otherwise < 0.
  */
-int Client::epoll_watch(int fd, void *data, uint32_t events)
+void Client::epoll_watch(int fd, void *data, uint32_t events)
 {
-	struct epoll_event ev;
+	epoll_event ev;
 	ev.events = events | EPOLLET;
 	ev.data.ptr = data;
-	return epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+	SystemCall(
+		epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev),
+		"Client::epoll_watch: epoll_ctl()");
 }
 
 void Client::setup_experiment(void)
@@ -101,8 +96,9 @@ void Client::setup_experiment(void)
 	step_count++;
 
 	// Finished running all the experiments?
+	// TODO: Why + 10?
 	if (step_pos > cfg.step_stop + 10) {
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 
 	cfg.arrival_us = (double) USEC / step_pos;
@@ -110,10 +106,9 @@ void Client::setup_experiment(void)
 
 	setup_deadlines();
 
-	if (clock_gettime(CLOCK_MONOTONIC, &start_time)) {
-		perror("clock_gettime()");
-		exit(1);
-	}
+	SystemCall(
+		clock_gettime(CLOCK_MONOTONIC, &start_time),
+		"Client::setup_experiment: clock_gettime");
 
 	timer_handler();
 }
@@ -133,62 +128,54 @@ void Client::setup_deadlines(void)
 
 void Client::do_request(void)
 {
-	bool should_measure;
-
 	if (in_count == cfg.pre_samples + 1) {
-		if (clock_gettime(CLOCK_MONOTONIC, &start_ts)) {
-			perror("clock_gettime()");
-			exit(1);
-		}
+		SystemCall(
+			clock_gettime(CLOCK_MONOTONIC, &start_ts),
+			"Client::do_request: clock_gettime");
 	}
 
-	should_measure = in_count > cfg.pre_samples
+	bool should_measure = in_count > cfg.pre_samples
 		and in_count <= cfg.pre_samples + cfg.samples;
-
-	if (gen->do_request(should_measure)) {
-		// panic("generator failed to make request");
-		exit(1);
-	}
+	gen->do_request(should_measure);
 }
 
 /**
  * Set timer to fire in usec time *since the last timer firing*
- * (as recorded by last_time).  This means if you call timer_arm()
+ * (as recorded by last_time). This means if you call timer_arm()
  * with a sequence of usecs based on some probability distribution,
  * the timer will trigger will according to that distribution,
  * and not the distribution + processing time.
  */
-int Client::timer_arm(struct timespec deadline)
+void Client::timer_arm(timespec deadline)
 {
-	struct itimerspec itval;
+	itimerspec itval;
 	itval.it_interval.tv_sec = 0;
 	itval.it_interval.tv_nsec = 0;
 	itval.it_value = deadline;
-	return timerfd_settime(timerfd, 0, &itval, NULL);
+	SystemCall(
+		timerfd_settime(timerfd, 0, &itval, NULL),
+		"Client::timer_arm: timerfd_settime()");
 }
 
 void Client::timer_handler(void)
 {
-	struct timespec now_time, result, sleep_time;
+	timespec now_time, result, sleep_time;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &now_time)) {
-		perror("clock_gettime()");
-		exit(1);
-	}
+	SystemCall(
+		clock_gettime(CLOCK_MONOTONIC, &now_time),
+		"Client::timer_handler: clock_gettime()");
 
 	timespec_subtract(&now_time, &start_time, &result);
 
 	while(timespec_subtract(&deadlines[in_count], &result, &sleep_time)) {
 		do_request();
 		in_count++;
-		if (in_count > cfg.total_samples)
+		if (in_count > cfg.total_samples) {
 			return;
+		}
 	}
 
-	if (timer_arm(sleep_time) < 0) {
-		perror("timer_arm()");
-		exit(1);
-	}
+	timer_arm(sleep_time);
 }
 
 /* Record a latency sample */
@@ -201,19 +188,17 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 	}
 
 	if (measure_count == cfg.samples) {
-		struct timespec now, delta;
+		timespec now, delta;
 		uint64_t delta_us;
 
 		measure_count++;
 
-		if (clock_gettime(CLOCK_MONOTONIC, &now) == -1) {
-			perror("read_completion_handler: clock_gettime()");
-			exit(1);
-		}
+		SystemCall(
+			clock_gettime(CLOCK_MONOTONIC, &now),
+			"Client::record_sample: clock_gettime()");
 
 		if (timespec_subtract(&now, &start_ts, &delta)) {
-			fprintf(stderr, "experiment finished before it started");
-			exit(1);
+			throw runtime_error("experiment finished before it started");
 		}
 		delta_us = timespec_to_us(&delta);
 		throughput = (double) cfg.samples / ((double) delta_us / (double) USEC);
@@ -226,10 +211,33 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 	}
 }
 
-/* Print summary of current results */
+/**
+ * Print header for results.
+ *
+ * NB: Keep this up to date with 'Client::print_summary()'.
+ */
+void Client::print_header(void)
+{
+	// TODO: also support detailed sample information
+	if (cfg.machine_readable) {
+		cout << "label\tservice_us\tarrival_us\tstep_count\trequests_per_sec"
+      "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_stddev"
+      "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
+      "\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
+	} else {
+		cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
+      "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+	}
+
+}
+
+/**
+ * Print summary of current results.
+ *
+ * NB: Keep this up to date with 'Client::print_header()'.
+ */
 void Client::print_summary(void)
 {
-	// NB: Keep this up to date with main()
 	if (cfg.machine_readable) {
 		printf("%s\t%f\t%f\t%lu\t", // no newline
 					 cfg.label,

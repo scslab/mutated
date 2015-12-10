@@ -33,10 +33,11 @@ private:
 	struct timespec start_time;
 
 	void do_request(void);
-	int timer_arm(struct timespec deadline);
+	void timer_arm(struct timespec deadline);
 	void timer_handler(void);
 	void setup_deadlines(void);
   void setup_experiment(void);
+	void print_header(void);
 	void print_summary(void);
 
 public:
@@ -64,10 +65,8 @@ public:
 	 * @fd: the file descriptor
 	 * @data: a cookie for the event
 	 * @event: the event mask
-	 *
-	 * Returns 0 if successful, otherwise < 0.
 	 */
-	int epoll_watch(int fd, void *data, uint32_t events);
+	void epoll_watch(int fd, void *data, uint32_t events);
 
 	/* Run the load generator */
 	void run(void);

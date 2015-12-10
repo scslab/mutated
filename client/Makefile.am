@@ -10,4 +10,4 @@ client_SOURCES = \
 	main.cc \
 	opts.hh opts.cc \
 	socket.hh socket.cc \
-	utils.hh utils.cc
+	util.hh util.cc

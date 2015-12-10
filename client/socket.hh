@@ -18,13 +18,14 @@ struct sg_ent {
 	void   (*complete) (Sock *s, void *data, int ret);
 };
 
-/* Maximum number of outstanding vector IO operations */
-#define MAX_SGS 64
-
 /**
  * Asynchronous socket (TCP only).
  */
 class Sock {
+public:
+  /* Maximum number of outstanding vector IO operations */
+  static constexpr size_t MAX_SGS = 64;
+
 private:
 	int ref_cnt;              /* the reference count */
 	int fd;                   /* the file descriptor */
@@ -32,14 +33,13 @@ private:
 	bool connected;           /* is the socket connected? */
 	bool rx_rdy;              /* ready to read? */
 	bool tx_rdy;              /* ready to write? */
-	int rx_nrents;            /* number of RX SGs */
-	int tx_nrents;            /* number of TX SGs */
-	struct sg_ent rx_ents[MAX_SGS];
-	struct sg_ent tx_ents[MAX_SGS];
+	size_t rx_nrents;            /* number of RX SGs */
+	size_t tx_nrents;            /* number of TX SGs */
+	sg_ent rx_ents[MAX_SGS];
+	sg_ent tx_ents[MAX_SGS];
 
-	/* Low-level recv */
+	/* Low-level recv & send*/
 	void rx(void);
-	/* Low-level send */
 	void tx(void);
 
 public:
@@ -59,9 +59,10 @@ public:
 	void connect(const char *addr, unsigned short port);
 
 	/* Read and write (vector IO support) */
-	void read(struct sg_ent *ent);
-	void write(struct sg_ent *ent);
+	void read(sg_ent *ent);
+	void write(sg_ent *ent);
 
+  /* Handle epoll events against this socket */
 	void handler(uint32_t events);
 
 public:

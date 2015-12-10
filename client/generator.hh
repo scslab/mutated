@@ -24,7 +24,7 @@ public:
 
 	/* Generate requests */
 	void start(void) {};
-	int do_request(bool should_measure);
+	void do_request(bool should_measure);
 };
 
 #endif /* GENERATOR_HH */

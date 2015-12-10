@@ -19,12 +19,12 @@
 
 #include "client.hh"
 #include "socket.hh"
-#include "utils.hh"
+#include "util.hh"
 
 using namespace std;
 
 /**
- * Sock -- construct a new socket.
+ * Sock - construct a new socket.
  */
 Sock::Sock(void)
 	: ref_cnt{1}, fd{-1}, port{0}, connected{false}, rx_rdy{false}, tx_rdy{false}
@@ -33,17 +33,17 @@ Sock::Sock(void)
 }
 
 /**
- * ~Sock -- deconstruct a socket.
+ * ~Sock - deconstruct a socket.
  */
 Sock::~Sock(void)
 {
-	for (int i = 0; i < rx_nrents; i++) {
+	for (size_t i = 0; i < rx_nrents; i++) {
 		if (rx_ents[i].complete) {
 			rx_ents[i].complete(this, rx_ents[i].data, -EIO);
 		}
 	}
 
-	for (int i = 0; i < tx_nrents; i++) {
+	for (size_t i = 0; i < tx_nrents; i++) {
 		if (tx_ents[i].complete) {
 			tx_ents[i].complete(this, tx_ents[i].data, -EIO);
 		}
@@ -59,7 +59,7 @@ Sock::~Sock(void)
 		 * ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845 for
 		 * details.
 		 */
-		struct linger linger;
+		linger linger;
 		linger.l_onoff = 1;
 		linger.l_linger = 0;
 		SystemCall(
@@ -71,7 +71,7 @@ Sock::~Sock(void)
 }
 
 /**
- * get -- increase the reference count.
+ * get - increase the reference count.
  */
 void Sock::get(void)
 {
@@ -79,11 +79,11 @@ void Sock::get(void)
 }
 
 /**
- * set -- decrease the reference count, will deallocate if hits zero.
+ * set - decrease the reference count, will deallocate if hits zero.
  */
 void Sock::put(void)
 {
-	if (not --ref_cnt) {
+	if (--ref_cnt == 0) {
 		/* TODO: Not clear this is a good approach */
 		delete this;
 	}
@@ -99,7 +99,7 @@ void Sock::put(void)
 void Sock::connect(const char *addr, unsigned short portt)
 {
 	int ret, opts;
-	struct sockaddr_in saddr;
+	sockaddr_in saddr;
 
 	port = portt;
 	fd = SystemCall(
@@ -121,7 +121,7 @@ void Sock::connect(const char *addr, unsigned short portt)
 	saddr.sin_addr.s_addr = inet_addr(addr);
 	saddr.sin_port = htons(port);
 
-	ret = ::connect(fd, (struct sockaddr *) &saddr, sizeof(saddr));
+	ret = ::connect(fd, (sockaddr *) &saddr, sizeof(saddr));
 	if (ret == -1 and errno != EINPROGRESS) {
 		throw system_error(errno, system_category(),
 			"Sock::connect: connect()");
@@ -134,33 +134,27 @@ void Sock::connect(const char *addr, unsigned short portt)
 		"Sock::connect: setsockopt(TCP_NODELAY)");
 
 	/* register for epoll events on this socket */
-	if (client_->epoll_watch(fd, this, EPOLLIN | EPOLLOUT)) {
-		throw system_error(errno, system_category(),
-			"Sock::connect: epoll_watch");
-	}
+	client_->epoll_watch(fd, this, EPOLLIN | EPOLLOUT);
 }
 
 /**
  * rx - receive segments from the wire.
- * @return: 0 if successful, otherwise fail
  */
 void Sock::rx(void)
 {
-	int i, j;
-	ssize_t ret;
-	struct iovec *iov = (struct iovec *) alloca(sizeof(struct iovec) * tx_nrents);
+	iovec *iov = (iovec *) alloca(sizeof(iovec) * tx_nrents);
 
 	/* is anything pending for read? */
-	if (not rx_nrents) {
+	if (rx_nrents == 0) {
 		return;
 	}
 
-	for (i = 0; i < rx_nrents; i++) {
+	for (size_t i = 0; i < rx_nrents; i++) {
 		iov[i].iov_base = rx_ents[i].buf;
 		iov[i].iov_len = rx_ents[i].len;
 	}
 
-	ret = readv(fd, iov, rx_nrents);
+	ssize_t ret = readv(fd, iov, rx_nrents);
 	if (ret < 0 and errno == EAGAIN) {
 		rx_rdy = false;
 		return;
@@ -170,12 +164,12 @@ void Sock::rx(void)
 	}
 
 	get();
-	for (i = 0; i < rx_nrents; i++) {
+	for (size_t i = 0; i < rx_nrents; i++) {
 		if ((size_t) ret < rx_ents[i].len) {
 			rx_ents[i].len -= ret;
 			rx_ents[i].buf += ret;
 
-			for (j = i; j < rx_nrents; j++) {
+			for (size_t j = i; j < rx_nrents; j++) {
 				rx_ents[j - i] = rx_ents[j];
 			}
 
@@ -202,9 +196,8 @@ void Sock::rx(void)
 /**
  * read - enqueue data to receive from the socket.
  * @ent: the scatter-gather entry
- * @return: 0 if sucessful, otherwise fail
  */
-void Sock::read(struct sg_ent *ent)
+void Sock::read(sg_ent *ent)
 {
 	if (rx_nrents >= MAX_SGS) {
 		throw system_error(ENOSPC, system_category(),
@@ -220,25 +213,22 @@ void Sock::read(struct sg_ent *ent)
 /**
  * tx - push pending writes to the wire.
  * @s: the socket
- * @return: 0 if successful, otherwise fail
  */
 void Sock::tx(void)
 {
-	int i, j;
-	ssize_t ret;
-	struct iovec *iov = (struct iovec *) alloca(sizeof(struct iovec) * tx_nrents);
+	iovec *iov = (iovec *) alloca(sizeof(iovec) * tx_nrents);
 
 	/* is anything pending for send? */
-	if (not tx_nrents) {
+	if (tx_nrents == 0) {
 		return;
 	}
 
-	for (i = 0; i < tx_nrents; i++) {
+	for (size_t i = 0; i < tx_nrents; i++) {
 		iov[i].iov_base = tx_ents[i].buf;
 		iov[i].iov_len = tx_ents[i].len;
 	}
 
-	ret = writev(fd, iov, tx_nrents);
+	ssize_t ret = writev(fd, iov, tx_nrents);
 	if (ret < 0 and errno == EAGAIN) {
 		tx_rdy = false;
 		return;
@@ -248,12 +238,12 @@ void Sock::tx(void)
 	}
 
 	get();
-	for (i = 0; i < tx_nrents; i++) {
+	for (size_t i = 0; i < tx_nrents; i++) {
 		if ((size_t) ret < tx_ents[i].len) {
 			tx_ents[i].len -= ret;
 			tx_ents[i].buf += ret;
 
-			for (j = i; j < tx_nrents; j++) {
+			for (size_t j = i; j < tx_nrents; j++) {
 				tx_ents[j - i] = tx_ents[j];
 			}
 
@@ -280,9 +270,8 @@ void Sock::tx(void)
 /**
  * write - enqueue data to send on the socket.
  * @ent: the scatter-gather entry
- * @return: 0 if successful, otherwise fail
  */
-void Sock::write(struct sg_ent *ent)
+void Sock::write(sg_ent *ent)
 {
 	if (tx_nrents >= MAX_SGS) {
 		throw system_error(ENOSPC, system_category(),
@@ -295,6 +284,11 @@ void Sock::write(struct sg_ent *ent)
 	}
 }
 
+/**
+ * __socket_check_connected - check if their is a socket error on the file.
+ * @fd: the file descriptor to check for a socket error
+ * @return: throws the error if present.
+ */
 static void __socket_check_connected(int fd)
 {
 	int valopt;
@@ -309,6 +303,10 @@ static void __socket_check_connected(int fd)
 	}
 }
 
+/**
+ * handler - handle an epoll event against the socket.
+ * @events: the bitmask of epoll events that occured.
+ */
 void Sock::handler(uint32_t events)
 {
 	get();

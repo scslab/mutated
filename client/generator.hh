@@ -23,7 +23,6 @@ public:
 	generator & operator=(generator &&) = delete;
 
 	/* Generate requests */
-	void start(void) {};
 	void do_request(bool should_measure);
 };
 

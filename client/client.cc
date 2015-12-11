@@ -30,7 +30,6 @@ Client::Client(int argc, char *argv[])
 {
 	epoll_watch(timerfd, NULL, EPOLLIN);
 	print_header();
-	gen->start();
 }
 
 /**

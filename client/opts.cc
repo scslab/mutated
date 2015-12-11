@@ -39,7 +39,7 @@ Config::Config(int argc, char *argv[])
 	: port{0}, label{"default"}, service_us{0}, arrival_us{0}, step_size{0}
 	, step_stop{0}, pre_samples{100}, samples{1000}, post_samples{100}
 	, total_samples{pre_samples + samples + post_samples}
-  , machine_readable{false}, lb_cnt{1}, least_loaded{false}
+	, machine_readable{false}
 {
 	int ret, workers, steps, c;
 	opterr = 0;
@@ -59,12 +59,6 @@ Config::Config(int argc, char *argv[])
 			break;
 		case 'c':
 			post_samples = atoi(optarg);
-			break;
-		case 'n':
-			lb_cnt = atoi(optarg);
-			break;
-		case 'b':
-			least_loaded = true;
 			break;
 		case 'l':
 			label = optarg;

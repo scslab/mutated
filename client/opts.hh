@@ -26,9 +26,6 @@ public:
 
 	bool machine_readable;  /* generate machine readable output? */
 
-	int lb_cnt;
-	bool least_loaded;
-
 public:
 	Config(int argc, char *argv[]);
 };

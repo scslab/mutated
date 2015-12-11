@@ -26,8 +26,8 @@ private:
 	double step_pos;
 	uint64_t step_count;
 
-	int epollfd;
-	int timerfd;
+	unsigned int epollfd;
+	unsigned int timerfd;
 
 	struct timespec *deadlines;
 	struct timespec start_time;

@@ -13,35 +13,48 @@ using namespace std;
 
 Client * client_;
 
-/* Create a new client */
+/**
+ * Create a new client.
+ */
 Client::Client(int argc, char *argv[])
 	: cfg{argc, argv}, gen{new generator{}}, rd{}, randgen{rd()}
 	, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, step_pos{0}, step_count{0}
-	, epollfd{-1}, timerfd{-1}
+	, epollfd{SystemCall(epoll_create1(0),
+											 "Client::Client: epoll_create1()")}
+	, timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
+											 "Client::Client: timefd_create()")}
 	, deadlines{(timespec *) malloc(sizeof(timespec) * cfg.total_samples)}
 	, start_time{}
 {
-	epollfd = SystemCall(
-		epoll_create1(0),
-		"Client::Client: epoll_create1()");
-
-	timerfd = SystemCall(
-		timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
-		"Client::Client: timerfd_create()");
-
 	epoll_watch(timerfd, NULL, EPOLLIN);
-
-
 	print_header();
 	gen->start();
 }
 
-/* Destructor */
+/**
+ * Destructor.
+ */
 Client::~Client(void)
 {
 	// TODO: Implement.
+}
+
+/**
+ * epoll_watch - registers a file descriptor for epoll events.
+ * @fd: the file descriptor
+ * @data: a cookie for the event
+ * @event: the event mask
+ */
+void Client::epoll_watch(int fd, void *data, uint32_t events)
+{
+	epoll_event ev;
+	ev.events = events | EPOLLET;
+	ev.data.ptr = data;
+	SystemCall(
+		epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev),
+		"Client::epoll_watch: epoll_ctl()");
 }
 
 /**
@@ -72,22 +85,6 @@ void Client::run(void)
 			}
 		}
 	}
-}
-
-/**
- * epoll_watch - registers a file descriptor for epoll events
- * @fd: the file descriptor
- * @data: a cookie for the event
- * @event: the event mask
- */
-void Client::epoll_watch(int fd, void *data, uint32_t events)
-{
-	epoll_event ev;
-	ev.events = events | EPOLLET;
-	ev.data.ptr = data;
-	SystemCall(
-		epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev),
-		"Client::epoll_watch: epoll_ctl()");
 }
 
 void Client::setup_experiment(void)

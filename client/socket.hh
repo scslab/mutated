@@ -11,7 +11,7 @@
 class Sock;
 
 /* A vector IO operation (data segment) */
-struct sg_ent {
+struct vio {
 	char   *buf;
 	size_t len;
 	void   *cb_data;
@@ -35,8 +35,8 @@ private:
 	bool tx_rdy;              /* ready to write? */
 	size_t rx_nrents;            /* number of RX SGs */
 	size_t tx_nrents;            /* number of TX SGs */
-	sg_ent rx_ents[MAX_SGS];
-	sg_ent tx_ents[MAX_SGS];
+	vio rx_ents[MAX_SGS];
+	vio tx_ents[MAX_SGS];
 
 	/* Low-level recv & send*/
 	void rx(void);
@@ -62,8 +62,8 @@ public:
 	void connect(const char *addr, unsigned short port);
 
 	/* Read and write (vector IO support) */
-	void read(const sg_ent & ent);
-	void write(const sg_ent & ent);
+	void read(const vio & ent);
+	void write(const vio & ent);
 
   /* Handle epoll events against this socket */
 	void run_io(uint32_t events);

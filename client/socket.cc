@@ -190,7 +190,7 @@ void Sock::rx(void)
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry
  */
-void Sock::read(const sg_ent & ent)
+void Sock::read(const vio & ent)
 {
 	if (rx_nrents >= MAX_SGS) {
 		throw system_error(ENOSPC, system_category(),
@@ -266,7 +266,7 @@ void Sock::tx(void)
  * write - enqueue data to send on the socket and send if socket ready.
  * @ent: the scatter-gather entry
  */
-void Sock::write(const sg_ent & ent)
+void Sock::write(const vio & ent)
 {
 	if (tx_nrents >= MAX_SGS) {
 		throw system_error(ENOSPC, system_category(),

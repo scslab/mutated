@@ -53,7 +53,7 @@ void generator::send_request(Sock * sock, bool should_measure)
 	req->req.delays[0] = req->service_us;
 
 	// add request to write queue
-	sg_ent ent;
+	vio ent;
 	ent.buf = (char *) &req->req;
 	ent.len = sizeof(req_pkt);
 	ent.complete = nullptr;

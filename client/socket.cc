@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "client.hh"
 #include "socket.hh"
 #include "util.hh"
 
@@ -27,7 +26,7 @@ using namespace std;
  * Sock - construct a new socket.
  */
 Sock::Sock(void)
-	: ref_cnt{1}, fd{-1}, port{0}, connected{false}, rx_rdy{false}, tx_rdy{false}
+	: ref_cnt{1}, fd_{-1}, port{0}, connected{false}, rx_rdy{false}, tx_rdy{false}
 	, rx_nrents{0}, tx_nrents{0}
 {
 }
@@ -49,9 +48,9 @@ Sock::~Sock(void)
 		}
 	}
 
-	if (fd >= 0) {
+	if (fd_ >= 0) {
 		/* Explicitly send a FIN */
-		shutdown(fd, SHUT_RDWR);
+		shutdown(fd_, SHUT_RDWR);
 
 		/* Turn on (zero-length) linger to avoid running out of ports by
 		 * sending a RST when we close the file descriptor.
@@ -63,10 +62,10 @@ Sock::~Sock(void)
 		linger.l_onoff = 1;
 		linger.l_linger = 0;
 		SystemCall(
-			setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &linger, sizeof(linger)),
+			setsockopt(fd_, SOL_SOCKET, SO_LINGER, (char *) &linger, sizeof(linger)),
 			"Sock::~Sock: SO_LINGER failed");
 
-		close(fd);
+		close(fd_);
 	}
 }
 
@@ -102,17 +101,17 @@ void Sock::connect(const char *addr, unsigned short portt)
 	sockaddr_in saddr;
 
 	port = portt;
-	fd = SystemCall(
+	fd_ = SystemCall(
 		socket(AF_INET, SOCK_STREAM, 0),
 		"Sock::connect: socket()");
 
 	/* make the socket nonblocking */
 	opts = SystemCall(
-		fcntl(fd, F_GETFL),
+		fcntl(fd_, F_GETFL),
 		"Sock::connect: fcntl(F_GETFL)");
 	opts = (opts | O_NONBLOCK);
 	SystemCall(
-		fcntl(fd, F_SETFL, opts),
+		fcntl(fd_, F_SETFL, opts),
 		"Sock::connect: fcntl(F_SETFL)");
 
 	/* connect */
@@ -121,7 +120,7 @@ void Sock::connect(const char *addr, unsigned short portt)
 	saddr.sin_addr.s_addr = inet_addr(addr);
 	saddr.sin_port = htons(port);
 
-	ret = ::connect(fd, (sockaddr *) &saddr, sizeof(saddr));
+	ret = ::connect(fd_, (sockaddr *) &saddr, sizeof(saddr));
 	if (ret == -1 and errno != EINPROGRESS) {
 		throw system_error(errno, system_category(),
 			"Sock::connect: connect()");
@@ -130,11 +129,8 @@ void Sock::connect(const char *addr, unsigned short portt)
 	/* disable TCP nagle algorithm (for lower latency) */
 	opts = 1;
 	SystemCall(
-		setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *) &opts, sizeof(int)),
+		setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *) &opts, sizeof(int)),
 		"Sock::connect: setsockopt(TCP_NODELAY)");
-
-	/* register for epoll events on this socket */
-	client_->epoll_watch(fd, this, EPOLLIN | EPOLLOUT);
 }
 
 /**
@@ -154,7 +150,7 @@ void Sock::rx(void)
 		iov[i].iov_len = rx_ents[i].len;
 	}
 
-	ssize_t ret = readv(fd, iov, rx_nrents);
+	ssize_t ret = readv(fd_, iov, rx_nrents);
 	if (ret < 0 and errno == EAGAIN) {
 		rx_rdy = false;
 		return;
@@ -228,7 +224,7 @@ void Sock::tx(void)
 		iov[i].iov_len = tx_ents[i].len;
 	}
 
-	ssize_t ret = writev(fd, iov, tx_nrents);
+	ssize_t ret = writev(fd_, iov, tx_nrents);
 	if (ret < 0 and errno == EAGAIN) {
 		tx_rdy = false;
 		return;
@@ -299,15 +295,15 @@ static void __socket_check_connected(int fd)
 			"Sock::__socket_get_connect_error: getsockopt()");
 	} else if (valopt) {
 		throw system_error(valopt, system_category(),
-			"Sock::handler: socket failed to connect");
+			"Sock::run_io: socket failed to connect");
 	}
 }
 
 /**
- * handler - handle an epoll event against the socket.
+ * run_io - handle an epoll event against the socket.
  * @events: the bitmask of epoll events that occured.
  */
-void Sock::handler(uint32_t events)
+void Sock::run_io(uint32_t events)
 {
 	get();
 
@@ -318,7 +314,7 @@ void Sock::handler(uint32_t events)
 
 	if (events & EPOLLOUT) {
 		if (not connected) {
-			__socket_check_connected(fd);
+			__socket_check_connected(fd_);
 			connected = true;
 		}
 		tx_rdy = true;

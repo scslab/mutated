@@ -72,7 +72,7 @@ static void workload_calibrate(workload *w)
 
 	delta_ns = timespec_to_ns(&delta);
 
-	iter_per_us = ((double) NSEC / (double) USEC) *
+	iter_per_us = ((double) _TIME_NSEC / (double) _TIME_USEC) *
 		      ((double) N / (double) delta_ns);
 
 	fprintf(stderr, "calibration: %f iterations / microsecond\n", iter_per_us);

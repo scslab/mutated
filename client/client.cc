@@ -11,6 +11,11 @@
 
 using namespace std;
 
+/* Microseconds in a second. */
+// TODO: Duplicated in opts.cc
+static constexpr double USEC = 1000000;
+
+/* A global client instance. TODO: Remove! */
 Client * client_;
 
 /**
@@ -57,6 +62,24 @@ void Client::epoll_watch(int fd, void *data, uint32_t events)
 }
 
 /**
+ * Set timer to fire in usec time *since the last timer firing*
+ * (as recorded by last_time). This means if you call timer_arm()
+ * with a sequence of usecs based on some probability distribution,
+ * the timer will trigger will according to that distribution,
+ * and not the distribution + processing time.
+ */
+void Client::timer_arm(timespec deadline)
+{
+	itimerspec itval;
+	itval.it_interval.tv_sec = 0;
+	itval.it_interval.tv_nsec = 0;
+	itval.it_value = deadline;
+	SystemCall(
+		timerfd_settime(timerfd, 0, &itval, NULL),
+		"Client::timer_arm: timerfd_settime()");
+}
+
+/**
  * Run a client, generate load and measure repsonse times.
  */
 void Client::run(void)
@@ -80,7 +103,7 @@ void Client::run(void)
 				timer_handler();
 			} else {
 				Sock *s = (Sock *) ev.data.ptr;
-				s->handler(ev.events);
+				s->run_io(ev.events);
 			}
 		}
 	}
@@ -97,7 +120,7 @@ void Client::setup_experiment(void)
 		exit(EXIT_SUCCESS);
 	}
 
-	cfg.arrival_us = (double) USEC / step_pos;
+	cfg.arrival_us = USEC / step_pos;
 	in_count = out_count = measure_count = 0;
 
 	setup_deadlines();
@@ -122,8 +145,30 @@ void Client::setup_deadlines(void)
 	}
 }
 
+void Client::timer_handler(void)
+{
+	timespec now_time, relative_start_time, sleep_time;
+
+	SystemCall(
+		clock_gettime(CLOCK_MONOTONIC, &now_time),
+		"Client::timer_handler: clock_gettime()");
+
+	timespec_subtract(&now_time, &start_time, &relative_start_time);
+
+	while(timespec_subtract(&deadlines[in_count], &relative_start_time, &sleep_time)) {
+		do_request();
+		in_count++;
+		if (in_count > cfg.total_samples) {
+			return;
+		}
+	}
+
+	timer_arm(sleep_time);
+}
+
 void Client::do_request(void)
 {
+	// FIXME: +1 correct?
 	if (in_count == cfg.pre_samples + 1) {
 		SystemCall(
 			clock_gettime(CLOCK_MONOTONIC, &start_ts),
@@ -133,45 +178,6 @@ void Client::do_request(void)
 	bool should_measure = in_count > cfg.pre_samples
 		and in_count <= cfg.pre_samples + cfg.samples;
 	gen->do_request(should_measure);
-}
-
-/**
- * Set timer to fire in usec time *since the last timer firing*
- * (as recorded by last_time). This means if you call timer_arm()
- * with a sequence of usecs based on some probability distribution,
- * the timer will trigger will according to that distribution,
- * and not the distribution + processing time.
- */
-void Client::timer_arm(timespec deadline)
-{
-	itimerspec itval;
-	itval.it_interval.tv_sec = 0;
-	itval.it_interval.tv_nsec = 0;
-	itval.it_value = deadline;
-	SystemCall(
-		timerfd_settime(timerfd, 0, &itval, NULL),
-		"Client::timer_arm: timerfd_settime()");
-}
-
-void Client::timer_handler(void)
-{
-	timespec now_time, result, sleep_time;
-
-	SystemCall(
-		clock_gettime(CLOCK_MONOTONIC, &now_time),
-		"Client::timer_handler: clock_gettime()");
-
-	timespec_subtract(&now_time, &start_time, &result);
-
-	while(timespec_subtract(&deadlines[in_count], &result, &sleep_time)) {
-		do_request();
-		in_count++;
-		if (in_count > cfg.total_samples) {
-			return;
-		}
-	}
-
-	timer_arm(sleep_time);
 }
 
 /* Record a latency sample */
@@ -197,7 +203,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 			throw runtime_error("experiment finished before it started");
 		}
 		delta_us = timespec_to_us(&delta);
-		throughput = (double) cfg.samples / ((double) delta_us / (double) USEC);
+		throughput = (double) cfg.samples / ((double) delta_us / USEC);
 	}
 
 	out_count++;

@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include <errno.h>
+#include <sys/epoll.h>
 
 #include "client.hh"
 #include "generator.hh"
@@ -53,13 +54,19 @@ static void __read_completion_handler(Sock *s, void *data, int status)
 
 void generator::do_request(bool should_measure)
 {
-	std::exponential_distribution<> d(1 / (double) client_->service_us());
+	std::exponential_distribution<double> d(1 / (double) client_->service_us());
 	sg_ent ent;
 	request *req;
 
+	// create a new connection
 	Sock *s = new Sock();
 	s->connect(client_->addr(), client_->port());
 
+	// register for epoll events on this socket
+	// TODO: Cleaner than global client_
+	client_->epoll_watch(s->fd(), s, EPOLLIN | EPOLLOUT);
+
+	// create our request
 	req = new request();
 	SystemCall(
 		clock_gettime(CLOCK_MONOTONIC, &req->start_ts),
@@ -70,11 +77,14 @@ void generator::do_request(bool should_measure)
 	req->req.tag = (uint64_t) req;
 	req->req.delays[0] = req->service_us;
 
+	// add request to write queue
 	ent.buf = (char *) &req->req;
 	ent.len = sizeof(req_pkt);
-	ent.complete = NULL;
+	ent.complete = nullptr;
+	ent.data = nullptr;
 	s->write(&ent);
 
+	// add response to read queue
 	ent.buf = (char *) &req->resp;
 	ent.len = sizeof(resp_pkt);
 	ent.data = (void *) &req->resp;

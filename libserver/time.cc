@@ -16,14 +16,14 @@ int timespec_subtract(struct timespec *x, struct timespec *y,
 			     struct timespec *result)
 {
 	if (x->tv_nsec < y->tv_nsec) {
-		int secs = (y->tv_nsec - x->tv_nsec) / NSEC + 1;
-		y->tv_nsec -= NSEC * secs;
+		int secs = (y->tv_nsec - x->tv_nsec) / _TIME_NSEC + 1;
+		y->tv_nsec -= _TIME_NSEC * secs;
 		y->tv_sec += secs;
 	}
 
-        if (x->tv_nsec - y->tv_nsec > NSEC) {
-                int secs = (x->tv_nsec - y->tv_nsec) / NSEC;
-                y->tv_nsec += NSEC * secs;
+        if (x->tv_nsec - y->tv_nsec > _TIME_NSEC) {
+                int secs = (x->tv_nsec - y->tv_nsec) / _TIME_NSEC;
+                y->tv_nsec += _TIME_NSEC * secs;
                 y->tv_sec -= secs;
 	}
 

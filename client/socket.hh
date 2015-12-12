@@ -28,7 +28,7 @@ public:
 
 private:
 	int ref_cnt;              /* the reference count */
-	int fd;                   /* the file descriptor */
+	int fd_;                   /* the file descriptor */
 	unsigned short port;
 	bool connected;           /* is the socket connected? */
 	bool rx_rdy;              /* ready to read? */
@@ -55,6 +55,9 @@ public:
 	Sock operator=(const Sock &) = delete;
 	Sock operator=(Sock &&) = delete;
 
+  /* Access underlying file descriptor */
+  int fd(void) const noexcept { return fd_; }
+
 	/* Open a new remote connection */
 	void connect(const char *addr, unsigned short port);
 
@@ -63,7 +66,7 @@ public:
 	void write(sg_ent *ent);
 
   /* Handle epoll events against this socket */
-	void handler(uint32_t events);
+	void run_io(uint32_t events);
 
 public:
 	void get(void); /* Take a new reference */

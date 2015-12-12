@@ -10,7 +10,6 @@ int main(int argc, char *argv[])
 {
 	try {
 		Client client{argc, argv};
-		client_ = &client;
 		client.run();
 	} catch (const std::system_error & e) {
 		std::cerr << "System Error: " << e.what() << std::endl;

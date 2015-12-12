@@ -6,12 +6,16 @@
  */
 
 #include <cstdint>
+#include <functional>
 #include <random>
 
 #include "socket.hh"
 
 class generator
 {
+public:
+	using request_cb = std::function<void(uint64_t,uint64_t,bool)>;
+	
 private:
 	std::mt19937 & rand_;
 	std::exponential_distribution<double> service_dist_;
@@ -29,7 +33,7 @@ public:
 	generator & operator=(generator &&) = delete;
 
 	/* Generate requests */
-	void send_request(Sock * sock, bool should_measure);
+	void send_request(Sock * sock, bool should_measure, request_cb cb);
 };
 
 #endif /* MUTATED_GENERATOR_HH */

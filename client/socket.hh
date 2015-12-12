@@ -23,8 +23,8 @@ struct vio {
  */
 class Sock {
 public:
-  /* Maximum number of outstanding vector IO operations */
-  static constexpr size_t MAX_SGS = 64;
+	/* Maximum number of outstanding vector IO operations */
+	static constexpr size_t MAX_SGS = 64;
 
 private:
 	int ref_cnt;              /* the reference count */
@@ -55,8 +55,8 @@ public:
 	Sock operator=(const Sock &) = delete;
 	Sock operator=(Sock &&) = delete;
 
-  /* Access underlying file descriptor */
-  int fd(void) const noexcept { return fd_; }
+	/* Access underlying file descriptor */
+	int fd(void) const noexcept { return fd_; }
 
 	/* Open a new remote connection */
 	void connect(const char *addr, unsigned short port);
@@ -65,7 +65,7 @@ public:
 	void read(const vio & ent);
 	void write(const vio & ent);
 
-  /* Handle epoll events against this socket */
+	/* Handle epoll events against this socket */
 	void run_io(uint32_t events);
 
 public:

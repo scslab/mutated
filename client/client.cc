@@ -1,3 +1,4 @@
+#include <functional>
 #include <iostream>
 
 #include <fcntl.h>
@@ -10,13 +11,11 @@
 #include "util.hh"
 
 using namespace std;
+using namespace std::placeholders;
 
 /* Microseconds in a second. */
 // TODO: Duplicated in opts.cc
 static constexpr double USEC = 1000000;
-
-/* A global client instance. TODO: Remove! */
-Client * client_;
 
 /**
  * Create a new client.
@@ -24,6 +23,7 @@ Client * client_;
 Client::Client(int argc, char *argv[])
 	: cfg{argc, argv}
 	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
+	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
 	, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, step_pos{0}, step_count{0}
@@ -182,12 +182,12 @@ void Client::send_request(void)
 
 	// create a new connection
 	Sock * sock = new Sock();
-	sock->connect(addr(), port());
+	sock->connect(cfg.addr, cfg.port);
 	epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
 
 	// sock is reference counted (get/put) and we'll deallocate it in the read
 	// callback established by generator.
-	gen->send_request(sock, should_measure);
+	gen->send_request(sock, should_measure, gen_cb );
 }
 
 /* Record a latency sample */
@@ -233,9 +233,9 @@ void Client::print_header(void)
 	// TODO: also support detailed sample information
 	if (cfg.machine_readable) {
 		cout << "label\tservice_us\tarrival_us\tstep_count\trequests_per_sec"
-      "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_stddev"
-      "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-      "\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
+			"\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_stddev"
+			"\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
+			"\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
 	} else {
 		cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
       "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;

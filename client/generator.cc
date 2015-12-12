@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <sys/epoll.h>
 
-#include "client.hh"
 #include "generator.hh"
 #include "protocol.hh"
 #include "socket.hh"
@@ -16,12 +15,28 @@
 /**
  * Tracks an outstanding request to the service we are generating load against.
  */
-struct request {
-	bool      should_measure;
-	timespec  start_ts;
-	uint64_t  service_us;
-	req_pkt   req;
-	resp_pkt  resp;
+class request {
+public:
+	using request_cb = generator::request_cb;
+
+	bool       should_measure;
+	request_cb cb;
+	timespec   start_ts;
+	uint64_t   service_us;
+	req_pkt    req;
+	resp_pkt   resp;
+
+	request(bool m, request_cb c, uint64_t service)
+		: should_measure{m}, cb{c}, start_ts{}, service_us{service}, req{}
+		, resp{}
+	{
+		SystemCall(
+			clock_gettime(CLOCK_MONOTONIC, &start_ts),
+			"generator::send_request: clock_gettime()");
+
+		req.nr = 1;
+		req.delays[0] = service_us;
+	}
 };
 
 static void __read_completion_handler(Sock *s, void *data, int status);
@@ -39,18 +54,11 @@ uint64_t generator::gen_service_time(void)
 	return ceil(service_dist_(rand_));
 }
 
-void generator::send_request(Sock * sock, bool should_measure)
+void generator::send_request(Sock * sock, bool should_measure, request_cb cb)
 {
 	// create our request
-	request * req = new request();
-	SystemCall(
-		clock_gettime(CLOCK_MONOTONIC, &req->start_ts),
-		"generator::send_request: clock_gettime()");
-	req->should_measure = should_measure;
-	req->service_us = gen_service_time();
-	req->req.nr = 1;
+	request * req = new request(should_measure, cb, gen_service_time());
 	req->req.tag = (uint64_t) req;
-	req->req.delays[0] = req->service_us;
 
 	// add request to write queue
 	vio ent;
@@ -68,7 +76,8 @@ void generator::send_request(Sock * sock, bool should_measure)
 	sock->read(ent);
 }
 
-static void __read_completion_handler(Sock *s, void *data, int status)
+static void
+__read_completion_handler(Sock *s, void *data, int status)
 {
 	resp_pkt *resp = (resp_pkt *) data;
 	request *req = (request *) resp->tag;
@@ -92,8 +101,7 @@ static void __read_completion_handler(Sock *s, void *data, int status)
 			wait_us = 0;
 		}
 
-		// TODO: Cleaner than global client_
-		client_->record_sample(service_us, wait_us, req->should_measure);
+		req->cb(service_us, wait_us, req->should_measure);
 	}
 
 	delete req;

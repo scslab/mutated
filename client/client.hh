@@ -8,7 +8,7 @@
 /**
  * Mutated load generator.
  */
-struct Client
+class Client
 {
 private:
 	Config cfg;
@@ -16,6 +16,7 @@ private:
 	std::random_device rd;
 	std::mt19937 randgen;
 	generator *gen;
+	generator::request_cb gen_cb;
 
 	accum service_samples;
 	accum wait_samples;
@@ -41,39 +42,31 @@ private:
 	void print_summary(void);
 
 public:
-	/* TODO: Fix this interface */
-	int port(void) { return cfg.port; }
-	char *addr(void) { return cfg.addr; }
-
-public:
-	/* Create a new client */
+	/* Create a new client. */
 	Client(int argc, char *argv[]);
 
-	/* Destructor */
+	/* Destructor. */
 	~Client(void);
 
-	/* No copy or move */
+	/* No copy or move. */
 	Client(const Client &) = delete;
 	Client(Client &&) = delete;
 	Client & operator=(const Client &) = delete;
 	Client & operator=(Client &&) = delete;
 
 	/**
-	 * epoll_watch - registers a file descriptor for epoll events
+	 * epoll_watch - registers a file descriptor for epoll events.
 	 * @fd: the file descriptor
 	 * @data: a cookie for the event
 	 * @event: the event mask
 	 */
 	void epoll_watch(int fd, void *data, uint32_t events);
 
-	/* Run the load generator */
+	/* Run the load generator. */
 	void run(void);
 
-	/* Record a latency sample */
+	/* Record a latency sample. */
 	void record_sample(uint64_t service_us, uint64_t wait_us, bool should_measure);
 };
-
-// TODO: Fix this.
-extern Client * client_;
 
 #endif /* MUTATED_CLIENT2_HH */

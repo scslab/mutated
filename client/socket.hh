@@ -14,7 +14,7 @@ class Sock;
 struct sg_ent {
 	char   *buf;
 	size_t len;
-	void   *data;
+	void   *cb_data;
 	void   (*complete) (Sock *s, void *data, int ret);
 };
 
@@ -62,8 +62,8 @@ public:
 	void connect(const char *addr, unsigned short port);
 
 	/* Read and write (vector IO support) */
-	void read(sg_ent *ent);
-	void write(sg_ent *ent);
+	void read(const sg_ent & ent);
+	void write(const sg_ent & ent);
 
   /* Handle epoll events against this socket */
 	void run_io(uint32_t events);

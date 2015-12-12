@@ -13,9 +13,9 @@ struct Client
 private:
 	Config cfg;
 
-	generator *gen;
 	std::random_device rd;
 	std::mt19937 randgen;
+	generator *gen;
 
 	accum service_samples;
 	accum wait_samples;
@@ -44,8 +44,6 @@ public:
 	/* TODO: Fix this interface */
 	int port(void) { return cfg.port; }
 	char *addr(void) { return cfg.addr; }
-	uint64_t service_us(void) { return cfg.service_us; }
-	std::mt19937 & get_randgen(void) { return randgen; }
 
 public:
 	/* Create a new client */

@@ -12,9 +12,15 @@
 
 class generator
 {
+private:
+	std::mt19937 & rand_;
+	std::exponential_distribution<double> service_dist_;
+
+	uint64_t gen_service_time(void);
+
 public:
 	/* Constructor */
-	generator(void) {}
+	generator(double service_us, std::mt19937 & rand);
 
 	/* No copy or move */
 	generator(const generator &) = delete;

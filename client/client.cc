@@ -22,7 +22,8 @@ Client * client_;
  * Create a new client.
  */
 Client::Client(int argc, char *argv[])
-	: cfg{argc, argv}, gen{new generator{}}, rd{}, randgen{rd()}
+	: cfg{argc, argv}
+	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
 	, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, step_pos{0}, step_count{0}

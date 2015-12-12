@@ -14,8 +14,6 @@ public:
 	const char *label;      /* label describing server (-m relevant only) */
 
 	double service_us;      /* service time mean microseconds */
-	double arrival_us;      /* arrival time mean microseconds */
-
 	double step_size;       /* step size in req/s */
 	double step_stop;       /* maximum req/s */
 

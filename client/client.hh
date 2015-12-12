@@ -18,6 +18,7 @@ private:
 	generator *gen;
 	generator::request_cb gen_cb;
 
+	double arrival_us;     /* arrival time mean microseconds */
 	accum service_samples;
 	accum wait_samples;
 	double throughput;

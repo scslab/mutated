@@ -24,7 +24,7 @@ Client::Client(int argc, char *argv[])
 	: cfg{argc, argv}
 	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
 	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
-	, service_samples{}, wait_samples{} , throughput{0}
+	, arrival_us{0}, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, step_pos{0}, step_count{0}
 	, epollfd{SystemCall(epoll_create1(0),
@@ -121,7 +121,7 @@ void Client::setup_experiment(void)
 		exit(EXIT_SUCCESS);
 	}
 
-	cfg.arrival_us = USEC / step_pos;
+	arrival_us = USEC / step_pos;
 	in_count = out_count = measure_count = 0;
 
 	setup_deadlines();
@@ -137,7 +137,7 @@ void Client::setup_deadlines(void)
 {
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
-	std::exponential_distribution<double> d(1 / (double) cfg.arrival_us);
+	std::exponential_distribution<double> d(1 / (double) arrival_us);
 
 	double accum = 0;
 	for (unsigned int i = 0; i < cfg.total_samples; i++) {
@@ -254,7 +254,7 @@ void Client::print_summary(void)
 		printf("%s\t%f\t%f\t%lu\t", // no newline
 					 cfg.label,
 					 cfg.service_us,
-					 cfg.arrival_us,
+					 arrival_us,
 					 step_count);
 	}
 

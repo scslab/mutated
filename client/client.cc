@@ -157,7 +157,7 @@ void Client::timer_handler(void)
 	timespec_subtract(&now_time, &start_time, &relative_start_time);
 
 	while(timespec_subtract(&deadlines[in_count], &relative_start_time, &sleep_time)) {
-		do_request();
+		send_request();
 		in_count++;
 		if (in_count > cfg.total_samples) {
 			return;
@@ -167,18 +167,27 @@ void Client::timer_handler(void)
 	timer_arm(sleep_time);
 }
 
-void Client::do_request(void)
+void Client::send_request(void)
 {
 	// FIXME: +1 correct?
 	if (in_count == cfg.pre_samples + 1) {
 		SystemCall(
 			clock_gettime(CLOCK_MONOTONIC, &start_ts),
-			"Client::do_request: clock_gettime");
+			"Client::send_request: clock_gettime");
 	}
 
+	// in measure phase? (not warm up or down)
 	bool should_measure = in_count > cfg.pre_samples
 		and in_count <= cfg.pre_samples + cfg.samples;
-	gen->do_request(should_measure);
+
+	// create a new connection
+	Sock * sock = new Sock();
+	sock->connect(addr(), port());
+	epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
+
+	// sock is reference counted (get/put) and we'll deallocate it in the read
+	// callback established by generator.
+	gen->send_request(sock, should_measure);
 }
 
 /* Record a latency sample */

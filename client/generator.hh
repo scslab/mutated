@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <random>
 
-#include "opts.hh"
+#include "socket.hh"
 
 class generator
 {
@@ -29,7 +29,7 @@ public:
 	generator & operator=(generator &&) = delete;
 
 	/* Generate requests */
-	void do_request(bool should_measure);
+	void send_request(Sock * sock, bool should_measure);
 };
 
 #endif /* MUTATED_GENERATOR_HH */

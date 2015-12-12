@@ -32,7 +32,7 @@ private:
 	struct timespec *deadlines;
 	struct timespec start_time;
 
-	void do_request(void);
+	void send_request(void);
 	void timer_arm(struct timespec deadline);
 	void timer_handler(void);
 	void setup_deadlines(void);

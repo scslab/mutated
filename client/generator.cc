@@ -39,25 +39,13 @@ uint64_t generator::gen_service_time(void)
 	return ceil(service_dist_(rand_));
 }
 
-void generator::do_request(bool should_measure)
+void generator::send_request(Sock * sock, bool should_measure)
 {
-	sg_ent ent;
-	request *req;
-
-	// create a new connection
-	Sock *s = new Sock();
-	// TODO: Cleaner than global client_
-	s->connect(client_->addr(), client_->port());
-
-	// register for epoll events on this socket
-	// TODO: Cleaner than global client_
-	client_->epoll_watch(s->fd(), s, EPOLLIN | EPOLLOUT);
-
 	// create our request
-	req = new request();
+	request * req = new request();
 	SystemCall(
 		clock_gettime(CLOCK_MONOTONIC, &req->start_ts),
-		"generator::do_request: clock_gettime()");
+		"generator::send_request: clock_gettime()");
 	req->should_measure = should_measure;
 	req->service_us = gen_service_time();
 	req->req.nr = 1;
@@ -65,21 +53,19 @@ void generator::do_request(bool should_measure)
 	req->req.delays[0] = req->service_us;
 
 	// add request to write queue
+	sg_ent ent;
 	ent.buf = (char *) &req->req;
 	ent.len = sizeof(req_pkt);
 	ent.complete = nullptr;
 	ent.cb_data = nullptr;
-	s->write(ent);
+	sock->write(ent);
 
 	// add response to read queue
 	ent.buf = (char *) &req->resp;
 	ent.len = sizeof(resp_pkt);
 	ent.cb_data = ent.buf;
 	ent.complete = &__read_completion_handler;
-	s->read(ent);
-
-	// XXX: Seems like a memory-leak of 's' here, but we are still using it in
-	// the '__read_completion_handler' (and using reference counts to track).
+	sock->read(ent);
 }
 
 static void __read_completion_handler(Sock *s, void *data, int status)

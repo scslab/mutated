@@ -80,7 +80,6 @@ void Sock::get(void)
 void Sock::put(void)
 {
 	if (--ref_cnt == 0) {
-		/* TODO: Not clear this is a good approach */
 		delete this;
 	}
 }

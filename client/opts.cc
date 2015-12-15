@@ -8,6 +8,7 @@
 using namespace std;
 
 /* Microseconds in a second. */
+// TODO: Duplicated in client.cc
 static constexpr double USEC = 1000000;
 
 /* Fixed arguments required */

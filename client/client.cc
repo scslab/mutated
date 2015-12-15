@@ -123,7 +123,7 @@ void Client::setup_experiment(void)
 
 void Client::setup_deadlines(void)
 {
-	arrival_us = USEC / cfg.service_us;
+	arrival_us = USEC / cfg.req_s;
 
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
@@ -249,7 +249,7 @@ void Client::print_summary(void)
 
 	printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",
 				 throughput,
-				 USEC / cfg.service_us,
+				 cfg.req_s,
 				 service_samples.min(),
 				 service_samples.mean(),
 				 service_samples.stddev(),

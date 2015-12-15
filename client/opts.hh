@@ -14,6 +14,7 @@ public:
 	const char *label;      /* label describing server (-m relevant only) */
 
 	double service_us;      /* service time mean microseconds */
+	double req_s;           /* requests per second */
 
 	uint64_t pre_samples;   /* number of samples to warm up on */
 	uint64_t samples;       /* number of samples to measure */

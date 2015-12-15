@@ -36,7 +36,7 @@ static void __printUsage(string prog, int status)
  * Parse command line.
  */
 Config::Config(int argc, char *argv[])
-	: port{0}, label{"default"}, service_us{0}
+	: port{0}, label{"default"}, service_us{0}, req_s{0}
 	, pre_samples{100}, samples{1000}, post_samples{100}
 	, total_samples{pre_samples + samples + post_samples}
 	, machine_readable{false}
@@ -82,5 +82,6 @@ Config::Config(int argc, char *argv[])
 		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
+	req_s = USEC / service_us;
 	total_samples = pre_samples + samples + post_samples;
 }

@@ -149,7 +149,7 @@ void Client::timer_handler(void)
 	while(timespec_subtract(&deadlines[in_count], &relative_start_time, &sleep_time)) {
 		send_request();
 		in_count++;
-		if (in_count > cfg.total_samples) {
+		if (in_count >= cfg.total_samples) {
 			return;
 		}
 	}
@@ -159,16 +159,15 @@ void Client::timer_handler(void)
 
 void Client::send_request(void)
 {
-	// FIXME: +1 correct?
-	if (in_count == cfg.pre_samples + 1) {
+	if (in_count == cfg.pre_samples) {
 		SystemCall(
 			clock_gettime(CLOCK_MONOTONIC, &start_ts),
 			"Client::send_request: clock_gettime");
 	}
 
 	// in measure phase? (not warm up or down)
-	bool should_measure = in_count > cfg.pre_samples
-		and in_count <= cfg.pre_samples + cfg.samples;
+	bool should_measure = in_count >= cfg.pre_samples
+		and in_count < cfg.pre_samples + cfg.samples;
 
 	// create a new connection
 	Sock * sock = new Sock();

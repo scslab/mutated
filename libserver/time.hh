@@ -44,8 +44,22 @@ inline uint64_t timespec_to_ns(struct timespec *t)
 	return t->tv_sec * _TIME_NSEC + t->tv_nsec;
 }
 
+/**
+ * timespec_subtract - subtracts timespec y from timespec x
+ * @x, @y: the timespecs to subtract
+ * @result: a pointer to store the answer
+ *
+ * WARNING: It's not safe for @result to be @x or @y.
+ *
+ * Returns 1 if the difference is negative, otherwise 0.
+ */
 int timespec_subtract(struct timespec *x, struct timespec *y,
                       struct timespec *result);
+
+/**
+ * busy_spin - spins the CPU for a given delay
+ * @delay: the amount of time to spin (timespec)
+ */
 void busy_spin(struct timespec *delay);
 
 #endif /* TIME_HH */

@@ -26,7 +26,6 @@ Client::Client(int argc, char *argv[])
 	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
 	, arrival_us{0}, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
-	, step_pos{0}, step_count{0}
 	, epollfd{SystemCall(epoll_create1(0),
 											 "Client::Client: epoll_create1()")}
 	, timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
@@ -112,16 +111,6 @@ void Client::run(void)
 
 void Client::setup_experiment(void)
 {
-	step_pos += cfg.step_size;
-	step_count++;
-
-	// Finished running all the experiments?
-	// TODO: Why + 10?
-	if (step_pos > cfg.step_stop + 10) {
-		exit(EXIT_SUCCESS);
-	}
-
-	arrival_us = USEC / step_pos;
 	in_count = out_count = measure_count = 0;
 
 	setup_deadlines();
@@ -129,15 +118,17 @@ void Client::setup_experiment(void)
 	SystemCall(
 		clock_gettime(CLOCK_MONOTONIC, &start_time),
 		"Client::setup_experiment: clock_gettime");
-
 	timer_handler();
 }
 
 void Client::setup_deadlines(void)
 {
+	// TODO: Should there be braces?
+	arrival_us = USEC / cfg.service_us * cfg.workers;
+
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
-	std::exponential_distribution<double> d(1 / (double) arrival_us);
+	std::exponential_distribution<double> d(1.0 / arrival_us);
 
 	double accum = 0;
 	for (unsigned int i = 0; i < cfg.total_samples; i++) {
@@ -219,7 +210,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 	out_count++;
 	if (out_count >= cfg.total_samples) {
 		print_summary();
-		setup_experiment();
+		exit(EXIT_SUCCESS);
 	}
 }
 
@@ -232,13 +223,13 @@ void Client::print_header(void)
 {
 	// TODO: also support detailed sample information
 	if (cfg.machine_readable) {
-		cout << "label\tservice_us\tarrival_us\tstep_count\trequests_per_sec"
+		cout << "label\tservice_us\tarrival_us\trequests_per_sec"
 			"\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_stddev"
 			"\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
 			"\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
 	} else {
 		cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-      "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+			"\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
 	}
 
 }
@@ -251,16 +242,15 @@ void Client::print_header(void)
 void Client::print_summary(void)
 {
 	if (cfg.machine_readable) {
-		printf("%s\t%f\t%f\t%lu\t", // no newline
+		printf("%s\t%f\t%f\t", // no newline
 					 cfg.label,
 					 cfg.service_us,
-					 arrival_us,
-					 step_count);
+					 arrival_us);
 	}
 
 	printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",
 				 throughput,
-				 step_pos,
+				 USEC / cfg.service_us * cfg.workers,
 				 service_samples.min(),
 				 service_samples.mean(),
 				 service_samples.stddev(),

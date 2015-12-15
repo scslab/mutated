@@ -21,7 +21,7 @@ static void __printUsage(string prog, int status)
 
 	cerr << "usage: " << prog
 			 << " [-h] [-m] [-w integer] [-s integer] [-c integer] "
-						"ip:port workers steps service_mean_us" << endl;
+						"ip:port workers service_mean_us" << endl;
 	cerr << "  -h: help" << endl;
 	cerr << "  -m: machine-readable" << endl;
 	cerr << "  -w: warm-up sample count" << endl;
@@ -36,12 +36,12 @@ static void __printUsage(string prog, int status)
  * Parse command line.
  */
 Config::Config(int argc, char *argv[])
-	: port{0}, label{"default"}, service_us{0}, step_size{0}
-	, step_stop{0}, pre_samples{100}, samples{1000}, post_samples{100}
+	: port{0}, label{"default"}, workers{0}, service_us{0}
+	, pre_samples{100}, samples{1000}, post_samples{100}
 	, total_samples{pre_samples + samples + post_samples}
 	, machine_readable{false}
 {
-	int ret, workers, steps, c;
+	int ret, c;
 	opterr = 0;
 
 	while ((c = getopt(argc, argv, "hbmw:s:c:l:n:")) != -1) {
@@ -84,20 +84,10 @@ Config::Config(int argc, char *argv[])
 		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
-	ret = sscanf(argv[optind+2], "%d", &steps);
-	if (ret != 1) {
-		__printUsage(argv[0], EXIT_FAILURE);
-	} else if (steps <= 0) {
-		__printUsage(argv[0], EXIT_FAILURE);
-	}
-
 	ret = sscanf(argv[optind+3], "%lf", &service_us);
 	if (ret != 1) {
 		__printUsage(argv[0], EXIT_FAILURE);
 	}
-
-	step_size = (double) USEC / service_us / steps * workers;
-	step_stop = (double) ceil(USEC / service_us * workers);
 
 	total_samples = pre_samples + samples + post_samples;
 }

@@ -25,8 +25,6 @@ private:
 
 	struct timespec start_ts;
 	uint64_t in_count, out_count, measure_count;
-	double step_pos;
-	uint64_t step_count;
 
 	unsigned int epollfd;
 	unsigned int timerfd;
@@ -38,7 +36,7 @@ private:
 	void timer_arm(struct timespec deadline);
 	void timer_handler(void);
 	void setup_deadlines(void);
-  void setup_experiment(void);
+	void setup_experiment(void);
 	void print_header(void);
 	void print_summary(void);
 

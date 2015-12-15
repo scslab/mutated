@@ -14,6 +14,9 @@
 class generator
 {
 public:
+	using clock = std::chrono::steady_clock;
+	using time_point = clock::time_point;
+	using duration = std::chrono::microseconds;
 	using request_cb = std::function<void(uint64_t,uint64_t,bool)>;
 	
 private:

@@ -1,6 +1,7 @@
 #ifndef MUTATED_CLIENT2_HH
 #define MUTATED_CLIENT2_HH
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -13,6 +14,11 @@
  */
 class Client
 {
+public:
+	using clock = std::chrono::steady_clock;
+	using time_point = clock::time_point;
+	using duration = std::chrono::microseconds;
+
 private:
 	Config cfg;
 
@@ -21,21 +27,21 @@ private:
 	std::unique_ptr<generator> gen;
 	generator::request_cb gen_cb;
 
+	unsigned int epollfd;
+	unsigned int timerfd;
+
 	accum service_samples;
 	accum wait_samples;
 	double throughput;
 
-	timespec start_ts;
 	uint64_t in_count, out_count, measure_count;
 
-	unsigned int epollfd;
-	unsigned int timerfd;
-
-	std::vector<timespec> deadlines;
-	timespec start_time;
+	time_point exp_start_time;
+	time_point measure_start_time;
+	std::vector<duration> deadlines;
 
 	void send_request(void);
-	void timer_arm(struct timespec deadline);
+	void timer_arm(duration deadline);
 	void timer_handler(void);
 	void setup_deadlines(void);
 	void setup_experiment(void);

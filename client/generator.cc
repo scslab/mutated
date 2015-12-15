@@ -1,6 +1,7 @@
 /*
  * generator_reqperflow - creates a new TCP connection for each request
  */
+#include <chrono>
 #include <stdexcept>
 
 #include <errno.h>
@@ -9,8 +10,9 @@
 #include "generator.hh"
 #include "protocol.hh"
 #include "socket.hh"
-#include "time.hh"
 #include "util.hh"
+
+using namespace std;
 
 /**
  * Tracks an outstanding request to the service we are generating load against.
@@ -18,22 +20,19 @@
 class request {
 public:
 	using request_cb = generator::request_cb;
+	using time_point = generator::time_point;
 
 	bool       should_measure;
 	request_cb cb;
-	timespec   start_ts;
+	time_point start_ts;
 	uint64_t   service_us;
 	req_pkt    req;
 	resp_pkt   resp;
 
 	request(bool m, request_cb c, uint64_t service)
-		: should_measure{m}, cb{c}, start_ts{}, service_us{service}, req{}
-		, resp{}
+		: should_measure{m}, cb{c}, start_ts{generator::clock::now()}
+		, service_us{service}, req{} , resp{}
 	{
-		SystemCall(
-			clock_gettime(CLOCK_MONOTONIC, &start_ts),
-			"generator::send_request: clock_gettime()");
-
 		req.nr = 1;
 		req.delays[0] = service_us;
 	}
@@ -81,20 +80,17 @@ __read_completion_handler(Sock *s, void *data, int status)
 {
 	resp_pkt *resp = (resp_pkt *) data;
 	request *req = (request *) resp->tag;
-	timespec now, delta;
-	uint64_t service_us, wait_us;
+	uint64_t wait_us;
 
 	if (status == 0) {
-		SystemCall(
-			clock_gettime(CLOCK_MONOTONIC, &now),
-			"__read_completion_handler: clock_gettime()");
-
-		if (timespec_subtract(&now, &req->start_ts, &delta)) {
+		auto now = generator::clock::now();
+		auto delta = now - req->start_ts;
+		if (delta <= generator::duration(0)) {
 			throw std::runtime_error("__read_completion_handler: sample arrived before it was sent");
 		}
 
-		service_us = timespec_to_us(&delta);
 		// measurement noise can push wait_us into negative values sometimes
+		uint64_t service_us = chrono::duration_cast<generator::duration>(delta).count();
 		if (service_us > req->service_us) {
 			wait_us = service_us - req->service_us;
 		} else {

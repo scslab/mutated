@@ -8,7 +8,6 @@
 
 #include "client.hh"
 #include "socket.hh"
-#include "time.hh"
 #include "util.hh"
 
 using namespace std;
@@ -25,14 +24,14 @@ Client::Client(int argc, char *argv[])
 	: cfg{argc, argv}
 	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
 	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
-	, service_samples{}, wait_samples{} , throughput{0}
-	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, epollfd{SystemCall(epoll_create1(0),
 											 "Client::Client: epoll_create1()")}
 	, timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
 											 "Client::Client: timefd_create()")}
+	, service_samples{}, wait_samples{} , throughput{0}
+	, in_count{0}, out_count{0}, measure_count{0}
+	, exp_start_time{}, measure_start_time{}
 	, deadlines{cfg.total_samples}
-	, start_time{}
 {
 	epoll_watch(timerfd, NULL, EPOLLIN);
 	print_header();
@@ -64,18 +63,28 @@ void Client::epoll_watch(int fd, void *data, uint32_t events)
 }
 
 /**
+ * Convert a chrono duration value into a timespec value.
+ */
+static void __duration_to_timerspec(Client::duration d, timespec & t)
+{
+	t.tv_sec = d.count() / USEC;
+	t.tv_nsec = (d.count() - t.tv_sec * USEC) * 100;
+}
+
+/**
  * Set timer to fire in usec time *since the last timer firing*
  * (as recorded by last_time). This means if you call timer_arm()
  * with a sequence of usecs based on some probability distribution,
  * the timer will trigger will according to that distribution,
  * and not the distribution + processing time.
  */
-void Client::timer_arm(timespec deadline)
+void Client::timer_arm(duration deadline)
 {
 	itimerspec itval;
 	itval.it_interval.tv_sec = 0;
 	itval.it_interval.tv_nsec = 0;
-	itval.it_value = deadline;
+	__duration_to_timerspec(deadline, itval.it_value);
+
 	SystemCall(
 		timerfd_settime(timerfd, 0, &itval, NULL),
 		"Client::timer_arm: timerfd_settime()");
@@ -114,12 +123,8 @@ void Client::run(void)
 void Client::setup_experiment(void)
 {
 	in_count = out_count = measure_count = 0;
-
 	setup_deadlines();
-
-	SystemCall(
-		clock_gettime(CLOCK_MONOTONIC, &start_time),
-		"Client::setup_experiment: clock_gettime");
+	exp_start_time = clock::now();
 	timer_handler();
 }
 
@@ -132,37 +137,34 @@ void Client::setup_deadlines(void)
 	double accum = 0;
 	for (auto & dl : deadlines) {
 		accum += d(randgen);
-		us_to_timespec(ceil(accum), &dl);
+		dl = duration(uint64_t(ceil(accum)));
 	}
 }
 
 void Client::timer_handler(void)
 {
-	timespec now_time, relative_start_time, sleep_time;
+	time_point now_time = clock::now();
+	duration now_relative = chrono::duration_cast<duration>(now_time - exp_start_time);
 
-	SystemCall(
-		clock_gettime(CLOCK_MONOTONIC, &now_time),
-		"Client::timer_handler: clock_gettime()");
-
-	timespec_subtract(&now_time, &start_time, &relative_start_time);
-
-	while(timespec_subtract(&deadlines[in_count], &relative_start_time, &sleep_time)) {
+	duration sleep_duration;
+	while(true) {
+		sleep_duration = deadlines[in_count] - now_relative;
+		if (sleep_duration > duration(0)) {
+			timer_arm(sleep_duration);
+			return;
+		}
 		send_request();
 		in_count++;
 		if (in_count >= cfg.total_samples) {
 			return;
 		}
 	}
-
-	timer_arm(sleep_time);
 }
 
 void Client::send_request(void)
 {
 	if (in_count == cfg.pre_samples) {
-		SystemCall(
-			clock_gettime(CLOCK_MONOTONIC, &start_ts),
-			"Client::send_request: clock_gettime");
+		measure_start_time = clock::now();
 	}
 
 	// in measure phase? (not warm up or down)
@@ -189,20 +191,18 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 	}
 
 	if (measure_count == cfg.samples) {
-		timespec now, delta;
-		uint64_t delta_us;
+		time_point delta;
 
 		measure_count++;
 
-		SystemCall(
-			clock_gettime(CLOCK_MONOTONIC, &now),
-			"Client::record_sample: clock_gettime()");
-
-		if (timespec_subtract(&now, &start_ts, &delta)) {
+		time_point now = clock::now();
+		auto exp_length = now - measure_start_time;
+		if (exp_length < clock::duration(0)) {
 			throw runtime_error("experiment finished before it started");
 		}
-		delta_us = timespec_to_us(&delta);
-		throughput = (double) cfg.samples / ((double) delta_us / USEC);
+
+		double delta_us = chrono::duration_cast<duration>(exp_length).count();
+		throughput = (double) cfg.samples / (delta_us / USEC);
 	}
 
 	out_count++;

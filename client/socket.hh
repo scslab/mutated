@@ -7,15 +7,35 @@
 
 #include <cstdint>
 #include <cstring>
+#include <functional>
 
 class Sock;
 
 /* A vector IO operation (data segment) */
-struct vio {
-	char   *buf;
-	size_t len;
-	void   *cb_data;
-	void   (*complete) (Sock *s, void *data, int ret);
+class vio {
+public:
+	using complete_cb = std::function<void(Sock*,void*,int)>;
+
+	char        *buf;
+	size_t      len;
+	void        *cb_data;
+	complete_cb complete;
+
+	vio(void)
+		: buf{nullptr}, len{0}, cb_data{nullptr}, complete{}
+	{}
+
+	vio(char * buf_, size_t len_, void * cb_data_ = nullptr,
+			complete_cb complete_ = complete_cb())
+		: buf{buf_}, len{len_}, cb_data{cb_data_}, complete{complete_}
+	{}
+
+	vio(const vio &) = default;
+	vio(vio &&) = default;
+	vio & operator=(const vio &) = default;
+	vio & operator=(vio &&) = default;
+
+	~vio(void) {}
 };
 
 /**

@@ -60,11 +60,7 @@ void generator::send_request(Sock * sock, bool should_measure, request_cb cb)
 	req->req.tag = (uint64_t) req;
 
 	// add request to write queue
-	vio ent;
-	ent.buf = (char *) &req->req;
-	ent.len = sizeof(req_pkt);
-	ent.complete = nullptr;
-	ent.cb_data = nullptr;
+	vio ent((char *) &req->req, sizeof(req_pkt));
 	sock->write(ent);
 
 	// add response to read queue

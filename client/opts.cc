@@ -10,6 +10,9 @@ using namespace std;
 /* Microseconds in a second. */
 static constexpr double USEC = 1000000;
 
+/* Fixed arguments required */
+static constexpr size_t FIXED_ARGS = 2;
+
 /**
  * Print usage message and exit with status.
  */
@@ -68,8 +71,8 @@ Config::Config(int argc, char *argv[])
 		}
 	}
 
-	if (argc - optind != 4) {
-		__printUsage(argv[0], EXIT_FAILURE);
+	if (argc - optind != FIXED_ARGS) {
+		__printUsage(argv[0]);
 	}
 
 	ret = sscanf(argv[optind+0], "%[^:]:%hu", addr, &port);
@@ -77,7 +80,7 @@ Config::Config(int argc, char *argv[])
 		__printUsage(argv[0], EXIT_FAILURE);
 	}
 
-	ret = sscanf(argv[optind+3], "%lf", &service_us);
+	ret = sscanf(argv[optind+1], "%lf", &service_us);
 	if (ret != 1) {
 		__printUsage(argv[0], EXIT_FAILURE);
 	}

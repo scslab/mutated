@@ -16,7 +16,7 @@ static constexpr size_t FIXED_ARGS = 2;
 /**
  * Print usage message and exit with status.
  */
-static void __printUsage(string prog, int status)
+static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
 	if (status != EXIT_SUCCESS) {
 		cerr << "invalid arguments!" << endl << endl;
@@ -67,7 +67,7 @@ Config::Config(int argc, char *argv[])
 			label = optarg;
 			break;
 		default:
-			__printUsage(argv[0], EXIT_FAILURE);
+			__printUsage(argv[0]);
 		}
 	}
 
@@ -77,12 +77,12 @@ Config::Config(int argc, char *argv[])
 
 	ret = sscanf(argv[optind+0], "%[^:]:%hu", addr, &port);
 	if (ret != 2) {
-		__printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0]);
 	}
 
 	ret = sscanf(argv[optind+1], "%lf", &service_us);
 	if (ret != 1) {
-		__printUsage(argv[0], EXIT_FAILURE);
+		__printUsage(argv[0]);
 	}
 
 	req_s = USEC / service_us;

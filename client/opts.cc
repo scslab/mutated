@@ -21,7 +21,7 @@ static void __printUsage(string prog, int status)
 
 	cerr << "usage: " << prog
 			 << " [-h] [-m] [-w integer] [-s integer] [-c integer] "
-						"ip:port workers service_mean_us" << endl;
+						"ip:port service_mean_us" << endl;
 	cerr << "  -h: help" << endl;
 	cerr << "  -m: machine-readable" << endl;
 	cerr << "  -w: warm-up sample count" << endl;
@@ -36,7 +36,7 @@ static void __printUsage(string prog, int status)
  * Parse command line.
  */
 Config::Config(int argc, char *argv[])
-	: port{0}, label{"default"}, workers{0}, service_us{0}
+	: port{0}, label{"default"}, service_us{0}
 	, pre_samples{100}, samples{1000}, post_samples{100}
 	, total_samples{pre_samples + samples + post_samples}
 	, machine_readable{false}
@@ -74,13 +74,6 @@ Config::Config(int argc, char *argv[])
 
 	ret = sscanf(argv[optind+0], "%[^:]:%hu", addr, &port);
 	if (ret != 2) {
-		__printUsage(argv[0], EXIT_FAILURE);
-	}
-
-	ret = sscanf(argv[optind+1], "%d", &workers);
-	if (ret != 1) {
-		__printUsage(argv[0], EXIT_FAILURE);
-	} else if (workers <= 0) {
 		__printUsage(argv[0], EXIT_FAILURE);
 	}
 

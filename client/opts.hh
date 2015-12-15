@@ -13,7 +13,6 @@ public:
 	uint16_t port;          /* the server port */
 	const char *label;      /* label describing server (-m relevant only) */
 
-	int workers;            /* number of workers generating load */
 	double service_us;      /* service time mean microseconds */
 
 	uint64_t pre_samples;   /* number of samples to warm up on */

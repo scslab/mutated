@@ -123,8 +123,7 @@ void Client::setup_experiment(void)
 
 void Client::setup_deadlines(void)
 {
-	// TODO: Should there be braces?
-	arrival_us = USEC / cfg.service_us * cfg.workers;
+	arrival_us = USEC / cfg.service_us;
 
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
@@ -250,7 +249,7 @@ void Client::print_summary(void)
 
 	printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",
 				 throughput,
-				 USEC / cfg.service_us * cfg.workers,
+				 USEC / cfg.service_us,
 				 service_samples.min(),
 				 service_samples.mean(),
 				 service_samples.stddev(),

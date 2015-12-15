@@ -1,6 +1,9 @@
 #ifndef MUTATED_CLIENT2_HH
 #define MUTATED_CLIENT2_HH
 
+#include <memory>
+#include <vector>
+
 #include "accum.hh"
 #include "generator.hh"
 #include "opts.hh"
@@ -15,22 +18,21 @@ private:
 
 	std::random_device rd;
 	std::mt19937 randgen;
-	generator *gen;
+	std::unique_ptr<generator> gen;
 	generator::request_cb gen_cb;
 
-	double arrival_us;     /* arrival time mean microseconds */
 	accum service_samples;
 	accum wait_samples;
 	double throughput;
 
-	struct timespec start_ts;
+	timespec start_ts;
 	uint64_t in_count, out_count, measure_count;
 
 	unsigned int epollfd;
 	unsigned int timerfd;
 
-	struct timespec *deadlines;
-	struct timespec start_time;
+	std::vector<timespec> deadlines;
+	timespec start_time;
 
 	void send_request(void);
 	void timer_arm(struct timespec deadline);

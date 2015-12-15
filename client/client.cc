@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#include <unistd.h>
 
 #include "client.hh"
 #include "socket.hh"
@@ -24,13 +25,13 @@ Client::Client(int argc, char *argv[])
 	: cfg{argc, argv}
 	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
 	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
-	, arrival_us{0}, service_samples{}, wait_samples{} , throughput{0}
+	, service_samples{}, wait_samples{} , throughput{0}
 	, start_ts{}, in_count{0}, out_count{0}, measure_count{0}
 	, epollfd{SystemCall(epoll_create1(0),
 											 "Client::Client: epoll_create1()")}
 	, timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
 											 "Client::Client: timefd_create()")}
-	, deadlines{(timespec *) malloc(sizeof(timespec) * cfg.total_samples)}
+	, deadlines{cfg.total_samples}
 	, start_time{}
 {
 	epoll_watch(timerfd, NULL, EPOLLIN);
@@ -42,7 +43,8 @@ Client::Client(int argc, char *argv[])
  */
 Client::~Client(void)
 {
-	// TODO: Implement.
+	SystemCall(close(epollfd), "Client::~Client: close");
+	SystemCall(close(timerfd), "Client::~Client: close");
 }
 
 /**
@@ -123,16 +125,14 @@ void Client::setup_experiment(void)
 
 void Client::setup_deadlines(void)
 {
-	arrival_us = USEC / cfg.req_s;
-
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
-	std::exponential_distribution<double> d(1.0 / arrival_us);
+	std::exponential_distribution<double> d(1.0 / (USEC / cfg.req_s));
 
 	double accum = 0;
-	for (unsigned int i = 0; i < cfg.total_samples; i++) {
+	for (auto & dl : deadlines) {
 		accum += d(randgen);
-		us_to_timespec(ceil(accum), &deadlines[i]);
+		us_to_timespec(ceil(accum), &dl);
 	}
 }
 
@@ -243,7 +243,7 @@ void Client::print_summary(void)
 		printf("%s\t%f\t%f\t", // no newline
 					 cfg.label,
 					 cfg.service_us,
-					 arrival_us);
+					 USEC / cfg.req_s);
 	}
 
 	printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",

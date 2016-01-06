@@ -9,6 +9,8 @@
 #include <cstring>
 #include <functional>
 
+#include <limits.h>
+
 class Sock;
 
 /* A vector IO operation (data segment) */
@@ -44,7 +46,7 @@ public:
 class Sock {
 public:
 	/* Maximum number of outstanding vector IO operations */
-	static constexpr size_t MAX_SGS = 64;
+	static constexpr size_t MAX_SGS = IOV_MAX;
 
 private:
 	int ref_cnt;              /* the reference count */

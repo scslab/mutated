@@ -31,7 +31,7 @@ Client::Client(int argc, char *argv[])
 	, service_samples{}, wait_samples{} , throughput{0}
 	, in_count{0}, out_count{0}, measure_count{0}
 	, exp_start_time{}, measure_start_time{}
-	, deadlines{cfg.total_samples}
+	, deadlines{cfg.total_samples}, conns{cfg.conn_cnt}
 {
 	epoll_watch(timerfd, NULL, EPOLLIN);
 	print_header();
@@ -123,6 +123,7 @@ void Client::run(void)
 void Client::setup_experiment(void)
 {
 	in_count = out_count = measure_count = 0;
+	setup_connections();
 	setup_deadlines();
 	exp_start_time = clock::now();
 	timer_handler();
@@ -138,6 +139,37 @@ void Client::setup_deadlines(void)
 	for (auto & dl : deadlines) {
 		accum += d(randgen);
 		dl = duration(uint64_t(ceil(accum)));
+	}
+}
+
+void Client::setup_connections(void)
+{
+	if (cfg.conn_mode == cfg.PER_REQUEST)
+		return;
+
+	for (auto &sock : conns) {
+		sock = new Sock();
+		sock->connect(cfg.addr, cfg.port);
+		epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
+	}
+}
+
+Sock *Client::get_connection(void)
+{
+	Sock *sock;
+
+	if (cfg.conn_mode == cfg.PER_REQUEST) {
+		// create a new connection per request
+		sock = new Sock();
+		sock->connect(cfg.addr, cfg.port);
+		epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
+		return sock;
+	} else {
+		// round-robin through a pool of established connections
+		static int idx = 0;
+		sock = conns[idx++ % conns.size()];
+		sock->get();
+		return sock;
 	}
 }
 
@@ -171,10 +203,8 @@ void Client::send_request(void)
 	bool should_measure = in_count >= cfg.pre_samples
 		and in_count < cfg.pre_samples + cfg.samples;
 
-	// create a new connection
-	Sock * sock = new Sock();
-	sock->connect(cfg.addr, cfg.port);
-	epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
+	// get an available connection
+	Sock *sock = get_connection();
 
 	// sock is reference counted (get/put) and we'll deallocate it in the read
 	// callback established by generator.

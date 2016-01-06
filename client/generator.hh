@@ -18,7 +18,7 @@ public:
 	using time_point = clock::time_point;
 	using duration = std::chrono::microseconds;
 	using request_cb = std::function<void(uint64_t,uint64_t,bool)>;
-	
+
 private:
 	std::mt19937 & rand_;
 	std::exponential_distribution<double> service_dist_;

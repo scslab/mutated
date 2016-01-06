@@ -8,6 +8,7 @@
 #include "accum.hh"
 #include "generator.hh"
 #include "opts.hh"
+#include "socket.hh"
 
 /**
  * Mutated load generator.
@@ -40,6 +41,10 @@ private:
 	time_point measure_start_time;
 	std::vector<duration> deadlines;
 
+	std::vector<Sock *> conns;
+
+	void setup_connections(void);
+	Sock *get_connection(void);
 	void send_request(void);
 	void timer_arm(duration deadline);
 	void timer_handler(void);

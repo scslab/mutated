@@ -140,7 +140,7 @@ void Sock::rx(void)
 	}
 
 	/* prepare io read vector */
-	iovec *iov = (iovec *) alloca(sizeof(iovec) * tx_nrents);
+	iovec *iov = (iovec *) alloca(sizeof(iovec) * rx_nrents);
 	for (size_t i = 0; i < rx_nrents; i++) {
 		iov[i].iov_base = rx_ents[i].buf;
 		iov[i].iov_len = rx_ents[i].len;

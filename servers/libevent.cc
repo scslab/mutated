@@ -22,19 +22,18 @@ static void echo_read_cb(struct bufferevent *bev, void *ctx UNUSED)
 	struct resp_pkt resp;
 	workload *w;
 
-	if (evbuffer_get_length(input) < sizeof(struct req_pkt))
-		return;
+	while (evbuffer_get_length(input) >= sizeof(struct req_pkt)) {
+		evbuffer_remove(input, &req, sizeof(req));
 
-	evbuffer_remove(input, &req, sizeof(req));
+		w = workload_alloc();
+		if (!w)
+			exit(1);
+		workload_run(w, req.delays[0]);
+		free(w);
+		resp.tag = req.tag;
 
-	w = workload_alloc();
-	if (!w)
-		exit(1);
-	workload_run(w, req.delays[0]);
-	free(w);
-	resp.tag = req.tag;
-
-	evbuffer_add(output, &resp, sizeof(resp));
+		evbuffer_add(output, &resp, sizeof(resp));
+	}
 }
 
 static void echo_event_cb(struct bufferevent *bev, short events,

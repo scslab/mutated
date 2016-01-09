@@ -25,13 +25,14 @@ Client::Client(int argc, char *argv[])
 	, rd{}, randgen{rd()}, gen{new generator(cfg.service_us, randgen)}
 	, gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
 	, epollfd{SystemCall(epoll_create1(0),
-											 "Client::Client: epoll_create1()")}
+	  "Client::Client: epoll_create1()")}
 	, timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
-											 "Client::Client: timefd_create()")}
+	  "Client::Client: timefd_create()")}
 	, service_samples{}, wait_samples{} , throughput{0}
 	, in_count{0}, out_count{0}, measure_count{0}
+	, pre_samples{0}, post_samples{0}, measure_samples{0}, total_samples{0}
 	, exp_start_time{}, measure_start_time{}
-	, deadlines{cfg.total_samples}, conns{cfg.conn_cnt}
+	, deadlines{}, conns{cfg.conn_cnt}
 {
 	epoll_watch(timerfd, NULL, EPOLLIN);
 	print_header();
@@ -134,12 +135,37 @@ void Client::setup_deadlines(void)
 	// Exponential distribution suggested by experimental evidence,
 	// c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
 	std::exponential_distribution<double> d(1.0 / (USEC / cfg.req_s));
-
 	double accum = 0;
-	for (auto & dl : deadlines) {
+	uint64_t pos = 0;
+	std::chrono::microseconds us;
+
+	// generate warm-up samples
+	while (duration(uint64_t(ceil(accum))) <
+	       std::chrono::seconds(cfg.warmup_seconds)) {
 		accum += d(randgen);
-		dl = duration(uint64_t(ceil(accum)));
+		deadlines.push_back(duration(uint64_t(ceil(accum))));
+		pos++;
 	}
+	pre_samples = pos;
+
+	// generate measurement samples
+	while (pos - pre_samples < cfg.samples) {
+		accum += d(randgen);
+		deadlines.push_back(duration(uint64_t(ceil(accum))));
+		pos++;
+	}
+	measure_samples = cfg.samples;
+
+	// generate cool-down samples
+	us = duration(uint64_t(ceil(accum)));
+	while (duration(uint64_t(ceil(accum))) - us <
+	       std::chrono::seconds(cfg.cooldown_seconds)) {
+		accum += d(randgen);
+		deadlines.push_back(duration(uint64_t(ceil(accum))));
+		pos++;
+	}
+	post_samples = pos - pre_samples - measure_samples;
+	total_samples = pos;
 }
 
 void Client::setup_connections(void)
@@ -187,7 +213,7 @@ void Client::timer_handler(void)
 		}
 		send_request();
 		in_count++;
-		if (in_count >= cfg.total_samples) {
+		if (in_count >= total_samples) {
 			return;
 		}
 	}
@@ -195,13 +221,13 @@ void Client::timer_handler(void)
 
 void Client::send_request(void)
 {
-	if (in_count == cfg.pre_samples) {
+	if (in_count == pre_samples) {
 		measure_start_time = clock::now();
 	}
 
 	// in measure phase? (not warm up or down)
-	bool should_measure = in_count >= cfg.pre_samples
-		and in_count < cfg.pre_samples + cfg.samples;
+	bool should_measure = in_count >= pre_samples
+		and in_count < pre_samples + measure_samples;
 
 	// get an available connection
 	Sock *sock = get_connection();
@@ -220,7 +246,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 		wait_samples.add_sample(wait_us);
 	}
 
-	if (measure_count == cfg.samples) {
+	if (measure_count == measure_samples) {
 		time_point delta;
 
 		measure_count++;
@@ -236,7 +262,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool should_me
 	}
 
 	out_count++;
-	if (out_count >= cfg.total_samples) {
+	if (out_count >= total_samples) {
 		print_summary();
 		exit(EXIT_SUCCESS);
 	}

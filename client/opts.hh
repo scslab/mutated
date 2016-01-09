@@ -16,10 +16,9 @@ public:
 	double service_us;	/* service time mean microseconds */
 	double req_s;           /* requests per second */
 
-	uint64_t pre_samples;   /* number of samples to warm up on */
+	uint64_t warmup_seconds;/* number of seconds to warm up */
+	uint64_t cooldown_seconds;/* number of seconds to cool down */
 	uint64_t samples;       /* number of samples to measure */
-	uint64_t post_samples;  /* number of samples to cool down on */
-	uint64_t total_samples; /* total number of samples to collect */
 
 	bool machine_readable;  /* generate machine readable output? */
 

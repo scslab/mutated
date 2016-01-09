@@ -30,9 +30,9 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
 	        "<ip:port> <req_per_sec> <generator> [<args>]" << endl;
 	cerr << "  -h: help" << endl;
 	cerr << "  -r: raw machine-readable format" << endl;
-	cerr << "  -w: warm-up sample count" << endl;
+	cerr << "  -w: warm-up seconds" << endl;
 	cerr << "  -s: measurement sample count" << endl;
-	cerr << "  -c: cool-down sample count" << endl;
+	cerr << "  -c: cool-down seconds" << endl;
 	cerr << "  -l: label for machine-readable output (-r)" << endl;
 	cerr << "  -m: the connection mode ('per_request' or 'round_robin')" << endl;
 	cerr << "  -n: the number of connections to open (if round robin mode)" << endl;
@@ -45,8 +45,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
  */
 Config::Config(int argc, char *argv[])
 	: port{0}, label{"default"}, service_us{0}, req_s{0}
-	, pre_samples{100}, samples{1000}, post_samples{100}
-	, total_samples{pre_samples + samples + post_samples}
+	, warmup_seconds{5}, cooldown_seconds{5}, samples{1000}
 	, machine_readable{false}, conn_mode{ROUND_ROBIN}, conn_cnt{10}
 	, gen_argc{0}, gen_argv{NULL}
 {
@@ -61,13 +60,13 @@ Config::Config(int argc, char *argv[])
 			machine_readable = true;
 			break;
 		case 'w':
-			pre_samples = atoi(optarg);
+			warmup_seconds = atoi(optarg);
 			break;
 		case 's':
 			samples = atoi(optarg);
 			break;
 		case 'c':
-			post_samples = atoi(optarg);
+			cooldown_seconds = atoi(optarg);
 			break;
 		case 'l':
 			label = optarg;
@@ -107,7 +106,6 @@ Config::Config(int argc, char *argv[])
 		__printUsage(argv[0]);
 
 	req_s = USEC / service_us;
-	total_samples = pre_samples + samples + post_samples;
 
 	gen_argc = argc - optind - FIXED_ARGS;
 	gen_argv = &argv[gen_argc];

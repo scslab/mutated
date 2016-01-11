@@ -15,108 +15,107 @@
 #include "workload.hh"
 #include "server_common.hh"
 
-static void
-echo_read_cb(struct bufferevent *bev, void *ctx UNUSED)
+static void echo_read_cb(struct bufferevent *bev, void *ctx UNUSED)
 {
-	struct evbuffer *input = bufferevent_get_input(bev);
-	struct evbuffer *output = bufferevent_get_output(bev);
-	struct req_pkt req;
-	struct resp_pkt resp;
-	workload *w;
+    struct evbuffer *input = bufferevent_get_input(bev);
+    struct evbuffer *output = bufferevent_get_output(bev);
+    struct req_pkt req;
+    struct resp_pkt resp;
+    workload *w;
 
-	while ((evbuffer_get_length(input) >= sizeof(struct req_pkt))) {
-		evbuffer_remove(input, &req, sizeof(req));
+    while ((evbuffer_get_length(input) >= sizeof(struct req_pkt))) {
+        evbuffer_remove(input, &req, sizeof(req));
 
-		w = workload_alloc();
-		if (!w)
-			exit(1);
-		workload_run(w, req.delays[0]);
-		free(w);
-		resp.tag = req.tag;
+        w = workload_alloc();
+        if (!w)
+            exit(1);
+        workload_run(w, req.delays[0]);
+        free(w);
+        resp.tag = req.tag;
 
-		evbuffer_add(output, &resp, sizeof(resp));
-	}
+        evbuffer_add(output, &resp, sizeof(resp));
+    }
 }
 
-static void
-echo_event_cb(struct bufferevent *bev, short events, void *ctx UNUSED)
+static void echo_event_cb(struct bufferevent *bev, short events,
+                          void *ctx UNUSED)
 {
-	if (events & BEV_EVENT_ERROR)
-		perror("Error from bufferevent");
-	if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
-		bufferevent_free(bev);
-	}
+    if (events & BEV_EVENT_ERROR)
+        perror("Error from bufferevent");
+    if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
+        bufferevent_free(bev);
+    }
 }
 
-static void
-accept_conn_cb(struct evconnlistener *listener,
-    evutil_socket_t fd, struct sockaddr *address UNUSED, int socklen UNUSED,
-    void *ctx UNUSED)
+static void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
+                           struct sockaddr *address UNUSED, int socklen UNUSED,
+                           void *ctx UNUSED)
 {
-	int ret, opts = 1;
-	struct event_base *base = evconnlistener_get_base(listener);
-	struct bufferevent *bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+    int ret, opts = 1;
+    struct event_base *base = evconnlistener_get_base(listener);
+    struct bufferevent *bev =
+      bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
 
-	ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
-			 (char *) &opts, sizeof(int));
-	if (ret == -1) {
-		perror("setsockopt()");
-		exit(1);
-	}
+    ret = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int));
+    if (ret == -1) {
+        perror("setsockopt()");
+        exit(1);
+    }
 
-	bufferevent_setcb(bev, echo_read_cb, NULL, echo_event_cb, NULL);
-	bufferevent_enable(bev, EV_READ|EV_WRITE);
+    bufferevent_setcb(bev, echo_read_cb, NULL, echo_event_cb, NULL);
+    bufferevent_enable(bev, EV_READ | EV_WRITE);
 }
 
-static void
-accept_error_cb(struct evconnlistener *listener, void *ctx UNUSED)
+static void accept_error_cb(struct evconnlistener *listener, void *ctx UNUSED)
 {
-	struct event_base *base = evconnlistener_get_base(listener);
-	int err = EVUTIL_SOCKET_ERROR();
+    struct event_base *base = evconnlistener_get_base(listener);
+    int err = EVUTIL_SOCKET_ERROR();
 
-	fprintf(stderr, "Got an error %d (%s) on the listener. "
-		"Shutting down.\n", err, evutil_socket_error_to_string(err));
+    fprintf(stderr, "Got an error %d (%s) on the listener. "
+                    "Shutting down.\n",
+            err, evutil_socket_error_to_string(err));
 
-	event_base_loopexit(base, NULL);
+    event_base_loopexit(base, NULL);
 }
 
 static void *worker_thread(void *arg)
 {
-	struct event_base *base;
-	struct evconnlistener *listener;
-	struct sockaddr_in sin;
+    struct event_base *base;
+    struct evconnlistener *listener;
+    struct sockaddr_in sin;
 
-	int cpu = (long) arg;
-	set_affinity(cpu);
+    int cpu = (long)arg;
+    set_affinity(cpu);
 
-	base = event_base_new();
-	if (!base) {
-		puts("Couldn't open event base");
-		exit(1);
-	}
+    base = event_base_new();
+    if (!base) {
+        puts("Couldn't open event base");
+        exit(1);
+    }
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(0);
-	sin.sin_port = htons(8080);
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(0);
+    sin.sin_port = htons(8080);
 
-	listener = evconnlistener_new_bind(base, accept_conn_cb, NULL,
-					   LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_REUSEABLE_PORT, -1,
-					   (struct sockaddr*) &sin, sizeof(sin));
-	if (!listener) {
-		perror("Couldn't create listener");
-		exit(1);
-	}
-	evconnlistener_set_error_cb(listener, accept_error_cb);
+    listener = evconnlistener_new_bind(
+      base, accept_conn_cb, NULL,
+      LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_REUSEABLE_PORT, -1,
+      (struct sockaddr *)&sin, sizeof(sin));
+    if (!listener) {
+        perror("Couldn't create listener");
+        exit(1);
+    }
+    evconnlistener_set_error_cb(listener, accept_error_cb);
 
-	event_base_dispatch(base);
+    event_base_dispatch(base);
 
-	return NULL;
+    return NULL;
 }
 
 int main(void)
 {
-	workload_setup(100);
-	create_worker_per_core(worker_thread, false);
-	return 0;
+    workload_setup(100);
+    create_worker_per_core(worker_thread, false);
+    return 0;
 }

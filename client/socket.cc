@@ -23,8 +23,14 @@ using namespace std;
  * Sock - construct a new socket.
  */
 Sock::Sock(void)
-	: ref_cnt{1}, fd_{-1}, port{0}, connected{false}, rx_rdy{false}, tx_rdy{false}
-	, rx_nrents{0}, tx_nrents{0}
+  : ref_cnt{1}
+  , fd_{-1}
+  , port{0}
+  , connected{false}
+  , rx_rdy{false}
+  , tx_rdy{false}
+  , rx_nrents{0}
+  , tx_nrents{0}
 {
 }
 
@@ -33,55 +39,52 @@ Sock::Sock(void)
  */
 Sock::~Sock(void)
 {
-	for (size_t i = 0; i < rx_nrents; i++) {
-		if (rx_ents[i].complete) {
-			rx_ents[i].complete(this, rx_ents[i].cb_data, -EIO);
-		}
-	}
+    for (size_t i = 0; i < rx_nrents; i++) {
+        if (rx_ents[i].complete) {
+            rx_ents[i].complete(this, rx_ents[i].cb_data, -EIO);
+        }
+    }
 
-	for (size_t i = 0; i < tx_nrents; i++) {
-		if (tx_ents[i].complete) {
-			tx_ents[i].complete(this, tx_ents[i].cb_data, -EIO);
-		}
-	}
+    for (size_t i = 0; i < tx_nrents; i++) {
+        if (tx_ents[i].complete) {
+            tx_ents[i].complete(this, tx_ents[i].cb_data, -EIO);
+        }
+    }
 
-	if (fd_ >= 0) {
-		/* Explicitly send a FIN */
-		shutdown(fd_, SHUT_RDWR);
+    if (fd_ >= 0) {
+        /* Explicitly send a FIN */
+        shutdown(fd_, SHUT_RDWR);
 
-		/* Turn on (zero-length) linger to avoid running out of ports by
-		 * sending a RST when we close the file descriptor.
-		 *
-		 * ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845 for
-		 * details.
-		 */
-		linger linger;
-		linger.l_onoff = 1;
-		linger.l_linger = 0;
-		SystemCall(
-			setsockopt(fd_, SOL_SOCKET, SO_LINGER, (char *) &linger, sizeof(linger)),
-			"Sock::~Sock: SO_LINGER failed");
+        /* Turn on (zero-length) linger to avoid running out of ports by
+         * sending a RST when we close the file descriptor.
+         *
+         * ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845
+         * for details.
+         */
+        linger linger;
+        linger.l_onoff = 1;
+        linger.l_linger = 0;
+        SystemCall(setsockopt(fd_, SOL_SOCKET, SO_LINGER, (char *)&linger,
+                              sizeof(linger)),
+                   "Sock::~Sock: SO_LINGER failed");
 
-		close(fd_);
-	}
+        close(fd_);
+    }
 }
 
 /**
  * get - increase the reference count.
  */
-void Sock::get(void)
-{
-	ref_cnt++;
-}
+void Sock::get(void) { ref_cnt++; }
 
 /**
  * set - decrease the reference count, will deallocate if hits zero.
  */
 void Sock::put(void)
 {
-	if (--ref_cnt == 0) {
-		delete this;
-	}
+    if (--ref_cnt == 0) {
+        delete this;
+    }
 }
 
 /**
@@ -93,40 +96,35 @@ void Sock::put(void)
  */
 void Sock::connect(const char *addr, unsigned short portt)
 {
-	int ret, opts;
-	sockaddr_in saddr;
+    int ret, opts;
+    sockaddr_in saddr;
 
-	port = portt;
-	fd_ = SystemCall(
-		socket(AF_INET, SOCK_STREAM, 0),
-		"Sock::connect: socket()");
+    port = portt;
+    fd_ =
+      SystemCall(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
 
-	/* make the socket nonblocking */
-	opts = SystemCall(
-		fcntl(fd_, F_GETFL),
-		"Sock::connect: fcntl(F_GETFL)");
-	opts = (opts | O_NONBLOCK);
-	SystemCall(
-		fcntl(fd_, F_SETFL, opts),
-		"Sock::connect: fcntl(F_SETFL)");
+    /* make the socket nonblocking */
+    opts = SystemCall(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
+    opts = (opts | O_NONBLOCK);
+    SystemCall(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
 
-	/* connect */
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = inet_addr(addr);
-	saddr.sin_port = htons(port);
+    /* connect */
+    memset(&saddr, 0, sizeof(saddr));
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = inet_addr(addr);
+    saddr.sin_port = htons(port);
 
-	ret = ::connect(fd_, (sockaddr *) &saddr, sizeof(saddr));
-	if (ret == -1 and errno != EINPROGRESS) {
-		throw system_error(errno, system_category(),
-			"Sock::connect: connect()");
-	}
+    ret = ::connect(fd_, (sockaddr *)&saddr, sizeof(saddr));
+    if (ret == -1 and errno != EINPROGRESS) {
+        throw system_error(errno, system_category(),
+                           "Sock::connect: connect()");
+    }
 
-	/* disable TCP nagle algorithm (for lower latency) */
-	opts = 1;
-	SystemCall(
-		setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *) &opts, sizeof(int)),
-		"Sock::connect: setsockopt(TCP_NODELAY)");
+    /* disable TCP nagle algorithm (for lower latency) */
+    opts = 1;
+    SystemCall(
+      setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int)),
+      "Sock::connect: setsockopt(TCP_NODELAY)");
 }
 
 /**
@@ -134,72 +132,71 @@ void Sock::connect(const char *addr, unsigned short portt)
  */
 void Sock::rx(void)
 {
-	/* is anything pending for read? */
-	if (rx_nrents == 0) {
-		return;
-	}
+    /* is anything pending for read? */
+    if (rx_nrents == 0) {
+        return;
+    }
 
-	/* prepare io read vector */
-	iovec *iov = (iovec *) alloca(sizeof(iovec) * rx_nrents);
-	for (size_t i = 0; i < rx_nrents; i++) {
-		iov[i].iov_base = rx_ents[i].buf;
-		iov[i].iov_len = rx_ents[i].len;
-	}
+    /* prepare io read vector */
+    iovec *iov = (iovec *)alloca(sizeof(iovec) * rx_nrents);
+    for (size_t i = 0; i < rx_nrents; i++) {
+        iov[i].iov_base = rx_ents[i].buf;
+        iov[i].iov_len = rx_ents[i].len;
+    }
 
-	/* read io vector from wire */
-	ssize_t ret = readv(fd_, iov, rx_nrents);
-	if (ret < 0 and errno == EAGAIN) {
-		rx_rdy = false;
-		return;
-	} else if (ret <= 0) {
-		throw system_error(errno, system_category(),
-			"Sock::rx: readv error");
-	}
+    /* read io vector from wire */
+    ssize_t ret = readv(fd_, iov, rx_nrents);
+    if (ret < 0 and errno == EAGAIN) {
+        rx_rdy = false;
+        return;
+    } else if (ret <= 0) {
+        throw system_error(errno, system_category(), "Sock::rx: readv error");
+    }
 
-	/* update outstanding IO given bytes read */
-	get();
-	for (size_t i = 0; i < rx_nrents; i++) {
-		if ((size_t) ret < rx_ents[i].len) {
-			/* partial read */
-			rx_ents[i].len -= ret;
-			rx_ents[i].buf += ret;
+    /* update outstanding IO given bytes read */
+    get();
+    for (size_t i = 0; i < rx_nrents; i++) {
+        if ((size_t)ret < rx_ents[i].len) {
+            /* partial read */
+            rx_ents[i].len -= ret;
+            rx_ents[i].buf += ret;
 
-			move(rx_ents + i, rx_ents + rx_nrents, rx_ents);
-			rx_nrents -= i;
-			put();
+            move(rx_ents + i, rx_ents + rx_nrents, rx_ents);
+            rx_nrents -= i;
+            put();
 
-			return;
-		}
+            return;
+        }
 
-		/* full read, invoke callback */
-		if (rx_ents[i].complete) {
-			rx_ents[i].complete(this, rx_ents[i].cb_data, 0);
-		}
-		ret -= rx_ents[i].len;
-	}
+        /* full read, invoke callback */
+        if (rx_ents[i].complete) {
+            rx_ents[i].complete(this, rx_ents[i].cb_data, 0);
+        }
+        ret -= rx_ents[i].len;
+    }
 
-	if (ret != 0) {
-		throw runtime_error("Sock::rx: readv returned more bytes than asked");
-	}
-	rx_nrents = 0;
-	put();
+    if (ret != 0) {
+        throw runtime_error("Sock::rx: readv returned more bytes than asked");
+    }
+    rx_nrents = 0;
+    put();
 }
 
 /**
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry
  */
-void Sock::read(const vio & ent)
+void Sock::read(const vio &ent)
 {
-	if (rx_nrents >= MAX_SGS) {
-		throw system_error(ENOSPC, system_category(),
-			"Sock::read: too many segments");
-	}
-	rx_ents[rx_nrents++] = ent;
+    if (rx_nrents >= MAX_SGS) {
+        throw system_error(ENOSPC, system_category(),
+                           "Sock::read: too many segments");
+    }
+    rx_ents[rx_nrents++] = ent;
 
-	if (rx_rdy) {
-		rx();
-	}
+    if (rx_rdy) {
+        rx();
+    }
 }
 
 /**
@@ -208,74 +205,74 @@ void Sock::read(const vio & ent)
  */
 void Sock::tx(void)
 {
-	/* is anything pending for send? */
-	if (tx_nrents == 0) {
-		return;
-	}
+    /* is anything pending for send? */
+    if (tx_nrents == 0) {
+        return;
+    }
 
-	/* prepare io write vector */
-	iovec *iov = (iovec *) alloca(sizeof(iovec) * tx_nrents);
-	for (size_t i = 0; i < tx_nrents; i++) {
-		iov[i].iov_base = tx_ents[i].buf;
-		iov[i].iov_len = tx_ents[i].len;
-	}
+    /* prepare io write vector */
+    iovec *iov = (iovec *)alloca(sizeof(iovec) * tx_nrents);
+    for (size_t i = 0; i < tx_nrents; i++) {
+        iov[i].iov_base = tx_ents[i].buf;
+        iov[i].iov_len = tx_ents[i].len;
+    }
 
-	/* write io vector to wire */
-	ssize_t nbytes = writev(fd_, iov, tx_nrents);
-	if (nbytes < 0) {
-		if (errno == EAGAIN) {
-			tx_rdy = false;
-			return;
-		} else {
-			throw system_error(errno, system_category(),
-				"Sock::tx: writev error");
-		}
-	}
+    /* write io vector to wire */
+    ssize_t nbytes = writev(fd_, iov, tx_nrents);
+    if (nbytes < 0) {
+        if (errno == EAGAIN) {
+            tx_rdy = false;
+            return;
+        } else {
+            throw system_error(errno, system_category(),
+                               "Sock::tx: writev error");
+        }
+    }
 
-	/* update outstanding IO given bytes written */
-	get();
-	for (size_t i = 0; i < tx_nrents; i++) {
-		if ((size_t) nbytes < tx_ents[i].len) {
-			/* partial write */
-			tx_ents[i].len -= nbytes;
-			tx_ents[i].buf += nbytes;
+    /* update outstanding IO given bytes written */
+    get();
+    for (size_t i = 0; i < tx_nrents; i++) {
+        if ((size_t)nbytes < tx_ents[i].len) {
+            /* partial write */
+            tx_ents[i].len -= nbytes;
+            tx_ents[i].buf += nbytes;
 
-			move(tx_ents + i, tx_ents + tx_nrents, tx_ents);
-			tx_nrents -= i;
-			put();
+            move(tx_ents + i, tx_ents + tx_nrents, tx_ents);
+            tx_nrents -= i;
+            put();
 
-			return;
-		}
+            return;
+        }
 
-		/* full write, invoke callback */
-		if (tx_ents[i].complete) {
-			tx_ents[i].complete(this, tx_ents[i].cb_data, 0);
-		}
-		nbytes -= tx_ents[i].len;
-	}
+        /* full write, invoke callback */
+        if (tx_ents[i].complete) {
+            tx_ents[i].complete(this, tx_ents[i].cb_data, 0);
+        }
+        nbytes -= tx_ents[i].len;
+    }
 
-	if (nbytes != 0) {
-		throw runtime_error("Sock::tx: writev returned more bytes than asked");
-	}
-	tx_nrents = 0;
-	put();
+    if (nbytes != 0) {
+        throw runtime_error("Sock::tx: writev returned more bytes than asked");
+    }
+    tx_nrents = 0;
+    put();
 }
 
 /**
  * write - enqueue data to send on the socket and send if socket ready.
  * @ent: the scatter-gather entry
  */
-void Sock::write(const vio & ent)
+void Sock::write(const vio &ent)
 {
-	if (tx_nrents >= MAX_SGS) {
-		throw system_error(ENOSPC, system_category(),
-			"Sock::write: too many segments");
-	}
-	tx_ents[tx_nrents++] = ent;
+    if (tx_nrents >= MAX_SGS) {
+        throw system_error(ENOSPC, system_category(),
+                           "Sock::write: too many segments");
+    }
+    tx_ents[tx_nrents++] = ent;
 
-	if (tx_rdy) {
-		tx();
-	}
+    if (tx_rdy) {
+        tx();
+    }
 }
 
 /**
@@ -285,16 +282,16 @@ void Sock::write(const vio & ent)
  */
 static void __socket_check_connected(int fd)
 {
-	int valopt;
-	socklen_t len = sizeof(int);
+    int valopt;
+    socklen_t len = sizeof(int);
 
-	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void *) &valopt, &len)) {
-		throw system_error(errno, system_category(),
-			"Sock::__socket_get_connect_error: getsockopt()");
-	} else if (valopt) {
-		throw system_error(valopt, system_category(),
-			"Sock::run_io: socket failed to connect");
-	}
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void *)&valopt, &len)) {
+        throw system_error(errno, system_category(),
+                           "Sock::__socket_get_connect_error: getsockopt()");
+    } else if (valopt) {
+        throw system_error(valopt, system_category(),
+                           "Sock::run_io: socket failed to connect");
+    }
 }
 
 /**
@@ -303,21 +300,21 @@ static void __socket_check_connected(int fd)
  */
 void Sock::run_io(uint32_t events)
 {
-	get();
+    get();
 
-	if (events & EPOLLIN) {
-		rx_rdy = true;
-		rx();
-	}
+    if (events & EPOLLIN) {
+        rx_rdy = true;
+        rx();
+    }
 
-	if (events & EPOLLOUT) {
-		if (not connected) {
-			__socket_check_connected(fd_);
-			connected = true;
-		}
-		tx_rdy = true;
-		tx();
-	}
+    if (events & EPOLLOUT) {
+        if (not connected) {
+            __socket_check_connected(fd_);
+            connected = true;
+        }
+        tx_rdy = true;
+        tx();
+    }
 
-	put();
+    put();
 }

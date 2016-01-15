@@ -118,7 +118,7 @@ int main(void)
             exit(1);
         }
 
-        ret = pthread_create(&tid, NULL, thread_handler, (void *)(long) fd);
+        ret = pthread_create(&tid, NULL, thread_handler, (void *)(long)fd);
         if (ret == -1) {
             perror("pthread_create()");
             exit(1);

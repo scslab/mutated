@@ -27,7 +27,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "usage: " << prog
          << " [-h] [-r] [-n integer] [-w integer] [-s integer] [-c integer] "
             "[-m string] [-l string] "
-            "<ip:port> <req_per_sec> <generator> [<args>]" << endl;
+            "<ip:port> <req_per_sec> <generator> [<args>]"
+         << endl;
     cerr << "  -h: help" << endl;
     cerr << "  -r: raw machine-readable format" << endl;
     cerr << "  -w: warm-up seconds" << endl;

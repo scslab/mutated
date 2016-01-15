@@ -6,7 +6,7 @@
 /**
  * Command line parser for mutated.
  */
-struct Config
+class Config
 {
   public:
     char addr[128];    /* the server address */

@@ -63,7 +63,7 @@ int create_worker_per_core(void *(*worker_thread)(void *), bool reserve_cpu)
             initial_cpu = i;
             continue;
         }
-        ret = pthread_create(&tid, NULL, worker_thread, (void *)(long) i);
+        ret = pthread_create(&tid, NULL, worker_thread, (void *)(long)i);
         if (ret == -1) {
             perror("thread_create()");
             exit(1);
@@ -80,7 +80,7 @@ int create_worker_per_core(void *(*worker_thread)(void *), bool reserve_cpu)
     }
 
     if (!reserve_cpu) {
-        worker_thread((void *)(long) initial_cpu);
+        worker_thread((void *)(long)initial_cpu);
     }
 
     return initial_cpu;

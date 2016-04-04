@@ -25,6 +25,7 @@ class Client
 
     std::random_device rd;
     std::mt19937 randgen;
+    std::uniform_int_distribution<int> conn_dist;
     std::unique_ptr<generator> gen;
     generator::request_cb gen_cb;
 

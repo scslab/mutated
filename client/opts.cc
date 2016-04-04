@@ -26,7 +26,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
 
     cerr << "usage: " << prog
          << " [-h] [-r] [-n integer] [-w integer] [-s integer] [-c integer] "
-            "[-m string] [-l string] "
+            "[-m string] [-d string] [-l string] "
             "<ip:port> <req_per_sec> <generator> [<args>]"
          << endl;
     cerr << "  -h: help" << endl;
@@ -35,7 +35,9 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -s: measurement sample count" << endl;
     cerr << "  -c: cool-down seconds" << endl;
     cerr << "  -l: label for machine-readable output (-r)" << endl;
-    cerr << "  -m: the connection mode ('per_request' or 'round_robin')"
+    cerr << "  -m: the connection mode ('per_request', 'round_robin', or 'random')"
+         << endl;
+    cerr << "  -d: the service time distribution ('fixed', 'exp', or 'lognorm')"
          << endl;
     cerr << "  -n: the number of connections to open (if round robin mode)"
          << endl;
@@ -57,13 +59,14 @@ Config::Config(int argc, char *argv[])
   , machine_readable{false}
   , conn_mode{ROUND_ROBIN}
   , conn_cnt{10}
+  , service_dist{EXPONENTIAL}
   , gen_argc{0}
   , gen_argv{NULL}
 {
     int ret, c;
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "hrw:s:c:l:m:n:")) != -1) {
+    while ((c = getopt(argc, argv, "hrw:s:c:l:m:d:n:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -87,6 +90,18 @@ Config::Config(int argc, char *argv[])
                 conn_mode = PER_REQUEST;
             else if (!strcmp(optarg, "round_robin"))
                 conn_mode = ROUND_ROBIN;
+            else if (!strcmp(optarg, "random"))
+                conn_mode = RANDOM;
+            else
+                __printUsage(argv[0]);
+            break;
+        case 'd':
+            if (!strcmp(optarg, "fixed"))
+                service_dist = FIXED;
+            else if (!strcmp(optarg, "exp"))
+                service_dist = EXPONENTIAL;
+            else if (!strcmp(optarg, "lognorm"))
+                service_dist = LOG_NORMAL;
             else
                 __printUsage(argv[0]);
             break;
@@ -117,6 +132,10 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
 
     req_s = USEC / service_us;
+    ret = sscanf(argv[optind + 3], "%lf", &req_s);
+    if (ret != 1) {
+        __printUsage(argv[0]);
+    }
 
     gen_argc = argc - optind - FIXED_ARGS;
     gen_argv = &argv[gen_argc];

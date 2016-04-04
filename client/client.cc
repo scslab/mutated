@@ -24,7 +24,8 @@ Client::Client(int argc, char *argv[])
   : cfg{argc, argv}
   , rd{}
   , randgen{rd()}
-  , gen{new generator(cfg.service_us, randgen)}
+  , conn_dist{0,(int)cfg.conn_cnt - 1}
+  , gen{new generator(randgen, cfg)}
   , gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
@@ -197,10 +198,15 @@ Sock *Client::get_connection(void)
         sock->connect(cfg.addr, cfg.port);
         epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
         return sock;
-    } else {
+    } else if (cfg.conn_mode == cfg.ROUND_ROBIN) {
         // round-robin through a pool of established connections
         static int idx = 0;
         sock = conns[idx++ % conns.size()];
+        sock->get();
+        return sock;
+    } else {
+        // randomly choose a connection from the pool
+        sock = conns[conn_dist(randgen)];
         sock->get();
         return sock;
     }

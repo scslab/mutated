@@ -25,9 +25,17 @@ class Config
     enum conn_modes {
         PER_REQUEST,
         ROUND_ROBIN,
+	RANDOM,
     };
     conn_modes conn_mode; /* the connection mode */
     uint64_t conn_cnt;    /* the number of connections to open */
+
+    enum service_distributions {
+        FIXED,
+        EXPONENTIAL,
+        LOG_NORMAL,
+    };
+    service_distributions service_dist; /* service time distribution */
 
     /* the remaining unparsed arguments */
     int gen_argc;

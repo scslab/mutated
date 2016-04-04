@@ -10,6 +10,7 @@
 #include <random>
 
 #include "socket.hh"
+#include "opts.hh"
 
 class generator
 {
@@ -20,14 +21,16 @@ class generator
     using request_cb = std::function<void(uint64_t, uint64_t, bool)>;
 
   private:
-    std::mt19937 &rand_;
-    std::exponential_distribution<double> service_dist_;
+    std::mt19937 rand_;
+    std::exponential_distribution<double> service_dist_exp;
+    std::lognormal_distribution<double> service_dist_lognorm;
 
+    Config &cfg_;
     uint64_t gen_service_time(void);
 
   public:
     /* Constructor */
-    generator(double service_us, std::mt19937 &rand);
+    generator(std::mt19937 &rand, Config &cfg);
 
     /* No copy or move */
     generator(const generator &) = delete;

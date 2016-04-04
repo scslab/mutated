@@ -46,16 +46,23 @@ class request
 static void __read_completion_handler(Sock *s, void *data, int status);
 
 /* Constructor */
-generator::generator(double service_us, std::mt19937 &rand)
+generator::generator(std::mt19937 &rand, Config &cfg)
   : rand_{rand}
-  , service_dist_{1.0 / service_us}
+  , service_dist_exp{1.0 / cfg.service_us}
+  , service_dist_lognorm{log(cfg.service_us) - 2.0, 2.0}
+  , cfg_(cfg)
 {
 }
 
 /* Return a service time to use for the next request */
 uint64_t generator::gen_service_time(void)
 {
-    return ceil(service_dist_(rand_));
+    if (cfg_.service_dist == cfg_.FIXED)
+	return ceil(cfg_.service_us);
+    else if (cfg_.service_dist == cfg_.EXPONENTIAL)
+        return ceil(service_dist_exp(rand_));
+    else
+        return ceil(service_dist_lognorm(rand_));
 }
 
 void generator::send_request(Sock *sock, bool should_measure, request_cb cb)

@@ -18,7 +18,7 @@ class Client
   public:
     using clock = std::chrono::steady_clock;
     using time_point = clock::time_point;
-    using duration = std::chrono::microseconds;
+    using duration = std::chrono::nanoseconds;
 
   private:
     Config cfg;

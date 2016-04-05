@@ -16,6 +16,7 @@ using namespace std::placeholders;
 /* Microseconds in a second. */
 // TODO: Duplicated in opts.cc
 static constexpr double USEC = 1000000;
+static constexpr double NSEC = 1000000000;
 
 /**
  * Create a new client.
@@ -78,8 +79,8 @@ void Client::epoll_watch(int fd, void *data, uint32_t events)
  */
 static void __duration_to_timerspec(Client::duration d, timespec &t)
 {
-    t.tv_sec = d.count() / USEC;
-    t.tv_nsec = (d.count() - t.tv_sec * USEC) * 100;
+    t.tv_sec = d.count() / NSEC;
+    t.tv_nsec = (d.count() - t.tv_sec * NSEC);
 }
 
 /**
@@ -142,10 +143,10 @@ void Client::setup_deadlines(void)
 {
     // Exponential distribution suggested by experimental evidence,
     // c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
-    std::exponential_distribution<double> d(1.0 / (USEC / cfg.req_s));
+    std::exponential_distribution<double> d(1.0 / (NSEC / cfg.req_s));
     double accum = 0;
     uint64_t pos = 0;
-    std::chrono::microseconds us;
+    duration coolstart;
 
     // generate warm-up samples
     while (duration(uint64_t(ceil(accum))) <
@@ -165,8 +166,8 @@ void Client::setup_deadlines(void)
     measure_samples = cfg.samples;
 
     // generate cool-down samples
-    us = duration(uint64_t(ceil(accum)));
-    while (duration(uint64_t(ceil(accum))) - us <
+    coolstart = duration(uint64_t(ceil(accum)));
+    while (duration(uint64_t(ceil(accum))) - coolstart <
            std::chrono::seconds(cfg.cooldown_seconds)) {
         accum += d(randgen);
         deadlines.push_back(duration(uint64_t(ceil(accum))));
@@ -272,8 +273,8 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us,
             throw runtime_error("experiment finished before it started");
         }
 
-        double delta_us = chrono::duration_cast<duration>(exp_length).count();
-        throughput = (double)cfg.samples / (delta_us / USEC);
+        double delta_ns = chrono::duration_cast<duration>(exp_length).count();
+        throughput = (double)cfg.samples / (delta_ns / NSEC);
     }
 
     out_count++;

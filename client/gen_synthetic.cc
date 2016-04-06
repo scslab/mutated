@@ -1,13 +1,16 @@
 /*
- * generator_reqperflow - creates a new TCP connection for each request
+ * gen_synthetic -- creates read and write requests on the specified socket
+ * conforming to the synthetic protocol.
  */
+
 #include <chrono>
+#include <iostream>
 #include <stdexcept>
 
 #include <errno.h>
 #include <sys/epoll.h>
 
-#include "generator.hh"
+#include "gen_synthetic.hh"
 #include "protocol.hh"
 #include "socket.hh"
 #include "util.hh"
@@ -17,7 +20,7 @@ using namespace std;
 /**
  * Tracks an outstanding request to the service we are generating load against.
  */
-class request
+class synreq
 {
   public:
     using request_cb = generator::request_cb;
@@ -30,7 +33,7 @@ class request
     req_pkt req;
     resp_pkt resp;
 
-    request(bool m, request_cb c, uint64_t service)
+    synreq(bool m, request_cb c, uint64_t service)
       : should_measure{m}
       , cb{c}
       , start_ts{generator::clock::now()}
@@ -46,32 +49,34 @@ class request
 static void __read_completion_handler(Sock *s, void *data, int status);
 
 /* Constructor */
-generator::generator(std::mt19937 &rand, Config &cfg)
-  : rand_{rand}
+synthetic::synthetic(const Config & cfg, std::mt19937 &rand)
+  : cfg_(cfg)
+  , rand_{rand}
   , service_dist_exp{1.0 / cfg.service_us}
   , service_dist_lognorm{log(cfg.service_us) - 2.0, 2.0}
-  , cfg_(cfg)
 {
 }
 
-/* Return a service time to use for the next request */
-uint64_t generator::gen_service_time(void)
+/* Return a service time to use for the next synreq */
+uint64_t synthetic::gen_service_time(void)
 {
-    if (cfg_.service_dist == cfg_.FIXED)
-	return ceil(cfg_.service_us);
-    else if (cfg_.service_dist == cfg_.EXPONENTIAL)
+    if (cfg_.service_dist == cfg_.FIXED) {
+        return ceil(cfg_.service_us);
+    } else if (cfg_.service_dist == cfg_.EXPONENTIAL) {
         return ceil(service_dist_exp(rand_));
-    else
+    } else {
         return ceil(service_dist_lognorm(rand_));
+    }
 }
 
-void generator::send_request(Sock *sock, bool should_measure, request_cb cb)
+/* Generate and send a new request */
+void synthetic::send_request(Sock *sock, bool should_measure, request_cb cb)
 {
-    // create our request
-    request *req = new request(should_measure, cb, gen_service_time());
+    // create our synreq
+    synreq *req = new synreq(should_measure, cb, gen_service_time());
     req->req.tag = (uint64_t)req;
 
-    // add request to write queue
+    // add synreq to write queue
     vio ent((char *)&req->req, sizeof(req_pkt));
     sock->write(ent);
 
@@ -83,10 +88,11 @@ void generator::send_request(Sock *sock, bool should_measure, request_cb cb)
     sock->read(ent);
 }
 
-static void __read_completion_handler(Sock *s, void *data, int status)
+/* Handle parsing a response from a previous request */
+static void __read_completion_handler(Sock *sock, void *data, int status)
 {
     resp_pkt *resp = (resp_pkt *)data;
-    request *req = (request *)resp->tag;
+    synreq *req = (synreq *)resp->tag;
     uint64_t wait_us;
 
     if (status == 0) {
@@ -110,5 +116,5 @@ static void __read_completion_handler(Sock *s, void *data, int status)
     }
 
     delete req;
-    s->put();
+    sock->put(); // indicate end of request
 }

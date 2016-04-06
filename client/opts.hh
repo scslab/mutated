@@ -25,7 +25,7 @@ class Config
     enum conn_modes {
         PER_REQUEST,
         ROUND_ROBIN,
-	RANDOM,
+        RANDOM,
     };
     conn_modes conn_mode; /* the connection mode */
     uint64_t conn_cnt;    /* the number of connections to open */
@@ -36,6 +36,12 @@ class Config
         LOG_NORMAL,
     };
     service_distributions service_dist; /* service time distribution */
+
+    enum protocols {
+        SYNTHETIC,
+        MEMCACHE,
+    };
+    protocols protocol; /* protocol to speak */
 
     /* the remaining unparsed arguments */
     int gen_argc;

@@ -13,7 +13,7 @@ using namespace std;
 static constexpr double USEC = 1000000;
 
 /* Fixed arguments required */
-static constexpr size_t FIXED_ARGS = 3;
+static constexpr size_t FIXED_ARGS = 4;
 
 /**
  * Print usage message and exit with status.
@@ -27,8 +27,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "usage: " << prog
          << " [-h] [-r] [-n integer] [-w integer] [-s integer] [-c integer] "
             "[-m string] [-d string] [-l string] "
-            "<ip:port> <req_per_sec> <generator> [<args>]"
-         << endl;
+            "<ip:port> <generator> <service_us> <req_per_sec> [<args>]"
+         << endl << endl;
     cerr << "  -h: help" << endl;
     cerr << "  -r: raw machine-readable format" << endl;
     cerr << "  -w: warm-up seconds" << endl;
@@ -41,6 +41,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
          << endl;
     cerr << "  -n: the number of connections to open (if round robin mode)"
          << endl;
+    cerr << endl;
+    cerr << "  generators: synthetic, memcache" << endl;
 
     exit(status);
 }
@@ -60,6 +62,7 @@ Config::Config(int argc, char *argv[])
   , conn_mode{ROUND_ROBIN}
   , conn_cnt{10}
   , service_dist{EXPONENTIAL}
+  , protocol{SYNTHETIC}
   , gen_argc{0}
   , gen_argv{NULL}
 {
@@ -122,14 +125,18 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
-    ret = sscanf(argv[optind + 1], "%lf", &service_us);
-    if (ret != 1) {
+    if (strcmp(argv[optind + 1], "synthetic") == 0) {
+      protocol = SYNTHETIC;
+    } else if (strcmp(argv[optind + 1], "memcache") == 0) {
+      protocol = MEMCACHE;
+    } else {
         __printUsage(argv[0]);
     }
 
-    // TODO: plug into an array of modular generators
-    if (strcmp(argv[optind + 2], "synthetic") != 0)
+    ret = sscanf(argv[optind + 2], "%lf", &service_us);
+    if (ret != 1) {
         __printUsage(argv[0]);
+    }
 
     req_s = USEC / service_us;
     ret = sscanf(argv[optind + 3], "%lf", &req_s);

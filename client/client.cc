@@ -7,6 +7,9 @@
 #include <unistd.h>
 
 #include "client.hh"
+#include "generator.hh"
+#include "gen_memcache.hh"
+#include "gen_synthetic.hh"
 #include "socket.hh"
 #include "util.hh"
 
@@ -18,6 +21,22 @@ using namespace std::placeholders;
 static constexpr double USEC = 1000000;
 static constexpr double NSEC = 1000000000;
 
+/* Return the right protocol generator. */
+static generator* choose_generator(const Config & cfg, mt19937 & rand)
+{
+    switch (cfg.protocol) {
+    case Config::SYNTHETIC:
+        return new synthetic(cfg, rand);
+        break;
+    case Config::MEMCACHE:
+        return new memcache(cfg);
+        break;
+    default:
+        throw runtime_error("Unknown protocol");
+        break;
+    }
+}
+
 /**
  * Create a new client.
  */
@@ -26,7 +45,7 @@ Client::Client(int argc, char *argv[])
   , rd{}
   , randgen{rd()}
   , conn_dist{0,(int)cfg.conn_cnt - 1}
-  , gen{new generator(randgen, cfg)}
+  , gen{choose_generator(cfg, randgen)}
   , gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
@@ -203,12 +222,12 @@ Sock *Client::get_connection(void)
         // round-robin through a pool of established connections
         static int idx = 0;
         sock = conns[idx++ % conns.size()];
-        sock->get();
+        sock->get(); // indicate start of request
         return sock;
     } else {
         // randomly choose a connection from the pool
         sock = conns[conn_dist(randgen)];
-        sock->get();
+        sock->get(); // indicate start of request
         return sock;
     }
 }

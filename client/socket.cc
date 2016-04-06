@@ -84,6 +84,8 @@ void Sock::put(void)
 {
     if (--ref_cnt == 0) {
         delete this;
+    } else if (ref_cnt < 0) {
+        throw std::runtime_error("sock::put refcnt < 0");
     }
 }
 

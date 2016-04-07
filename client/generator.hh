@@ -36,7 +36,8 @@ class generator
     generator &operator=(generator &&) = delete;
 
     /* Generate requests */
-    virtual void send_request(Sock *sock, bool should_measure, request_cb cb) = 0;
+    virtual void send_request(Sock *sock, bool should_measure,
+                              request_cb cb) = 0;
 };
 
 #endif /* MUTATED_GENERATOR_HH */

@@ -13,11 +13,11 @@
 class memcache : public generator
 {
   private:
-    const Config & cfg_;
+    const Config &cfg_;
 
   public:
     /* Constructor */
-    memcache(const Config & cfg);
+    memcache(const Config &cfg);
     ~memcache(void) = default;
 
     /* No copy or move */

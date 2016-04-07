@@ -14,8 +14,8 @@
 class synthetic : public generator
 {
   private:
-    const Config & cfg_;
-    std::mt19937 & rand_;
+    const Config &cfg_;
+    std::mt19937 &rand_;
     std::exponential_distribution<double> service_dist_exp;
     std::lognormal_distribution<double> service_dist_lognorm;
 
@@ -23,7 +23,7 @@ class synthetic : public generator
 
   public:
     /* Constructor */
-    synthetic(const Config & cfg, std::mt19937 & rand);
+    synthetic(const Config &cfg, std::mt19937 &rand);
     ~synthetic(void) = default;
 
     /* No copy or move */

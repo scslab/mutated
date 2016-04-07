@@ -10,7 +10,7 @@
 #include "generator.hh"
 #include "gen_memcache.hh"
 #include "gen_synthetic.hh"
-#include "socket.hh"
+#include "socket2.hh"
 #include "util.hh"
 
 using namespace std;
@@ -197,8 +197,9 @@ void Client::setup_deadlines(void)
 
 void Client::setup_connections(void)
 {
-    if (cfg.conn_mode == cfg.PER_REQUEST)
+    if (cfg.conn_mode == cfg.PER_REQUEST) {
         return;
+    }
 
     for (auto &sock : conns) {
         sock = new Sock();

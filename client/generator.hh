@@ -11,7 +11,7 @@
 #include <random>
 
 #include "opts.hh"
-#include "socket.hh"
+#include "socket2.hh"
 
 /**
  * Abstract class defining the interface all generators must support.

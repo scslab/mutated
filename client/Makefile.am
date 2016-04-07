@@ -11,5 +11,5 @@ client_SOURCES = \
 	gen_synthetic.hh gen_synthetic.cc \
 	main.cc \
 	opts.hh opts.cc \
-	socket.hh socket.cc \
+	socket2.hh socket2.cc \
 	util.hh util.cc

@@ -6,7 +6,7 @@
 
 #include "generator.hh"
 #include "opts.hh"
-#include "socket.hh"
+#include "socket2.hh"
 
 /**
  * Generator supporting our own mutated synthetic protocol.

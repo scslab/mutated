@@ -3,6 +3,7 @@
  */
 #include <algorithm>
 #include <system_error>
+#include <utility>
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -13,7 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "socket.hh"
+#include "socket2.hh"
 #include "util.hh"
 
 using namespace std;
@@ -27,8 +28,9 @@ Sock::Sock(void) noexcept : ref_cnt{1},
                             connected{false},
                             rx_rdy{false},
                             tx_rdy{false},
-                            rx_nrents{0},
-                            tx_nrents{0}
+                            rxcbs{},
+                            rbuf{},
+                            wbuf{}
 {
 }
 
@@ -37,18 +39,15 @@ Sock::Sock(void) noexcept : ref_cnt{1},
  */
 Sock::~Sock(void) noexcept
 {
-    for (size_t i = 0; i < rx_nrents; i++) {
-        if (rx_ents[i].complete) {
-            rx_ents[i].complete(this, rx_ents[i].cb_data, -EIO);
+    // cancel all pending read requests
+    for (auto &rxcb : rxcbs) {
+        if (rxcb.cb) {
+            rxcb.cb(this, nullptr, 0, nullptr, 0, rxcb.cb_data, -EIO);
         }
     }
 
-    for (size_t i = 0; i < tx_nrents; i++) {
-        if (tx_ents[i].complete) {
-            tx_ents[i].complete(this, tx_ents[i].cb_data, -EIO);
-        }
-    }
-
+    /* we don't check for any errors since difficult to handle in a
+     * deconstructor */
     if (fd_ >= 0) {
         /* Explicitly send a FIN */
         shutdown(fd_, SHUT_RDWR);
@@ -130,53 +129,52 @@ void Sock::connect(const char *addr, unsigned short portt)
  */
 void Sock::rx(void)
 {
-    /* is anything pending for read? */
-    if (rx_nrents == 0) {
+    // is anything pending for read?
+    if (rxcbs.items() == 0) {
         return;
     }
 
-    /* prepare io read vector */
-    iovec *iov = (iovec *)alloca(sizeof(iovec) * rx_nrents);
-    for (size_t i = 0; i < rx_nrents; i++) {
-        iov[i].iov_base = rx_ents[i].buf;
-        iov[i].iov_len = rx_ents[i].len;
+    // do the read
+    ssize_t nbytes;
+    size_t n = rbuf.avail(), n1 = n;
+    auto rptrs = rbuf.queue_prep(n1);
+    if (rptrs.second == nullptr) {
+        // no wrapping, normal read
+        nbytes = ::read(fd_, rptrs.first, n);
+    } else {
+        // need to wrap, so use writev
+        iovec iov[2];
+        iov[0].iov_base = rptrs.first;
+        iov[0].iov_len = n1;
+        iov[1].iov_base = rptrs.second;
+        iov[1].iov_len = n - n1;
+        nbytes = ::readv(fd_, iov, 2);
     }
 
-    /* read io vector from wire */
-    ssize_t ret = readv(fd_, iov, rx_nrents);
-    if (ret < 0 and errno == EAGAIN) {
+    if (nbytes < 0 and errno == EAGAIN) {
         rx_rdy = false;
         return;
-    } else if (ret <= 0) {
+    } else if (nbytes <= 0) {
         throw system_error(errno, system_category(), "Sock::rx: readv error");
+    } else if (size_t(nbytes) > n) {
+        throw runtime_error("Sock::rx: read returned more bytes than asked");
     }
+    rbuf.queue_commit(nbytes);
 
-    /* update outstanding IO given bytes read */
     get();
-    for (size_t i = 0; i < rx_nrents; i++) {
-        if ((size_t)ret < rx_ents[i].len) {
-            /* partial read */
-            rx_ents[i].len -= ret;
-            rx_ents[i].buf += ret;
-
-            move(rx_ents + i, rx_ents + rx_nrents, rx_ents);
-            rx_nrents -= i;
-            put();
-
-            return;
+    for (auto &rxcb : rxcbs) {
+        if (rbuf.items() < rxcb.len) {
+            break;
         }
-
-        /* full read, invoke callback */
-        if (rx_ents[i].complete) {
-            rx_ents[i].complete(this, rx_ents[i].cb_data, 0);
+        if (rxcb.cb) {
+            n = n1 = rxcb.len;
+            rptrs = rbuf.peek(n1);
+            rxcb.cb(this, rptrs.first, n1, rptrs.second, n - n1, rxcb.cb_data,
+                    0);
         }
-        ret -= rx_ents[i].len;
+        rbuf.drop(rxcb.len);
+        rxcbs.drop(1);
     }
-
-    if (ret != 0) {
-        throw runtime_error("Sock::rx: readv returned more bytes than asked");
-    }
-    rx_nrents = 0;
     put();
 }
 
@@ -184,14 +182,10 @@ void Sock::rx(void)
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry
  */
-void Sock::read(const vio &ent)
+void Sock::read(const ioop &op)
 {
-    if (rx_nrents >= MAX_SGS) {
-        throw system_error(ENOSPC, system_category(),
-                           "Sock::read: too many segments");
-    }
-    rx_ents[rx_nrents++] = ent;
-
+    size_t n = 1;
+    *rxcbs.queue(n) = op;
     if (rx_rdy) {
         rx();
     }
@@ -199,78 +193,59 @@ void Sock::read(const vio &ent)
 
 /**
  * tx - push pending writes to the wire.
- * @s: the socket
  */
 void Sock::tx(void)
 {
     /* is anything pending for send? */
-    if (tx_nrents == 0) {
+    if (wbuf.items() == 0) {
         return;
     }
 
-    /* prepare io write vector */
-    iovec *iov = (iovec *)alloca(sizeof(iovec) * tx_nrents);
-    for (size_t i = 0; i < tx_nrents; i++) {
-        iov[i].iov_base = tx_ents[i].buf;
-        iov[i].iov_len = tx_ents[i].len;
+    ssize_t nbytes;
+    size_t n = wbuf.items(), n1 = n;
+    auto wptrs = wbuf.peek(n1);
+
+    if (wptrs.second == nullptr) {
+        /* no wrapping, normal write */
+        nbytes = ::write(fd_, wptrs.first, n);
+    } else {
+        /* need to wrap, so use writev */
+        iovec iov[2];
+        iov[0].iov_base = wptrs.first;
+        iov[0].iov_len = n1;
+        iov[1].iov_base = wptrs.second;
+        iov[1].iov_len = n - n1;
+        nbytes = ::writev(fd_, iov, 2);
     }
 
-    /* write io vector to wire */
-    ssize_t nbytes = writev(fd_, iov, tx_nrents);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
             tx_rdy = false;
             return;
         } else {
             throw system_error(errno, system_category(),
-                               "Sock::tx: writev error");
+                               "Sock::tx: write error");
         }
+    } else if (size_t(nbytes) > n) {
+        throw runtime_error("Sock::tx: write sent more bytes than asked");
     }
-
-    /* update outstanding IO given bytes written */
-    get();
-    for (size_t i = 0; i < tx_nrents; i++) {
-        if ((size_t)nbytes < tx_ents[i].len) {
-            /* partial write */
-            tx_ents[i].len -= nbytes;
-            tx_ents[i].buf += nbytes;
-
-            move(tx_ents + i, tx_ents + tx_nrents, tx_ents);
-            tx_nrents -= i;
-            put();
-
-            return;
-        }
-
-        /* full write, invoke callback */
-        if (tx_ents[i].complete) {
-            tx_ents[i].complete(this, tx_ents[i].cb_data, 0);
-        }
-        nbytes -= tx_ents[i].len;
-    }
-
-    if (nbytes != 0) {
-        throw runtime_error("Sock::tx: writev returned more bytes than asked");
-    }
-    tx_nrents = 0;
-    put();
+    wbuf.drop(nbytes);
 }
 
 /**
- * write - enqueue data to send on the socket and send if socket ready.
- * @ent: the scatter-gather entry
+ * Prepare a write on this socket.
+ * @len: the size of the requested write. The available buffer through the
+ * first pointer is returned through len.
+ * @return: the buffer, split between two contiguous segments, for the write.
+ * The length of the first segment is returned through len, the length of the
+ * second segment is the remaining needed buffer to fullfill the request.
  */
-void Sock::write(const vio &ent)
+pair<char *, char *> Sock::write(size_t &len)
 {
-    if (tx_nrents >= MAX_SGS) {
-        throw system_error(ENOSPC, system_category(),
-                           "Sock::write: too many segments");
-    }
-    tx_ents[tx_nrents++] = ent;
-
-    if (tx_rdy) {
-        tx();
-    }
+    size_t fulllen = len;
+    auto wptrs = wbuf.queue_prep(len);
+    wbuf.queue_commit(fulllen);
+    return wptrs;
 }
 
 /**

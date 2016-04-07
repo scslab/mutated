@@ -22,14 +22,14 @@ static void __read_completion_handler2(Sock *sock, void *data, int status)
     // TODO: IMPLEMENT!
     UNUSED(status);
 
-    char * req = (char *) data;
+    char *req = (char *)data;
     cout << "Response: " << req << endl;
     delete req;
     sock->put();
 }
 
 /* Constructor */
-memcache::memcache(const Config & cfg)
+memcache::memcache(const Config &cfg)
   : cfg_(cfg)
 {
     // TODO: IMPLEMENT!

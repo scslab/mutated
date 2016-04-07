@@ -21,24 +21,26 @@ static constexpr size_t FIXED_ARGS = 4;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl << endl;
+        cerr << "invalid arguments!" << endl
+             << endl;
     }
 
     cerr << "usage: " << prog
          << " [-h] [-r] [-n integer] [-w integer] [-s integer] [-c integer] "
             "[-m string] [-d string] [-l string] "
-            "<ip:port> <generator> <service_us> <req_per_sec> [<args>]"
-         << endl << endl;
+            "<ip:port> <generator> <service_us> <req_per_sec> [<args>]" << endl
+         << endl;
     cerr << "  -h: help" << endl;
     cerr << "  -r: raw machine-readable format" << endl;
     cerr << "  -w: warm-up seconds" << endl;
     cerr << "  -s: measurement sample count" << endl;
     cerr << "  -c: cool-down seconds" << endl;
     cerr << "  -l: label for machine-readable output (-r)" << endl;
-    cerr << "  -m: the connection mode ('per_request', 'round_robin', or 'random')"
+    cerr << "  -m: connection mode ('per_request', 'round_robin', or 'random')"
          << endl;
-    cerr << "  -d: the service time distribution ('fixed', 'exp', or 'lognorm')"
-         << endl;
+    cerr
+      << "  -d: the service time distribution ('fixed', 'exp', or 'lognorm')"
+      << endl;
     cerr << "  -n: the number of connections to open (if round robin mode)"
          << endl;
     cerr << endl;
@@ -126,9 +128,9 @@ Config::Config(int argc, char *argv[])
     }
 
     if (strcmp(argv[optind + 1], "synthetic") == 0) {
-      protocol = SYNTHETIC;
+        protocol = SYNTHETIC;
     } else if (strcmp(argv[optind + 1], "memcache") == 0) {
-      protocol = MEMCACHE;
+        protocol = MEMCACHE;
     } else {
         __printUsage(argv[0]);
     }

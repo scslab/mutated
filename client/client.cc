@@ -22,7 +22,7 @@ static constexpr double USEC = 1000000;
 static constexpr double NSEC = 1000000000;
 
 /* Return the right protocol generator. */
-static generator* choose_generator(const Config & cfg, mt19937 & rand)
+static generator *choose_generator(const Config &cfg, mt19937 &rand)
 {
     switch (cfg.protocol) {
     case Config::SYNTHETIC:
@@ -44,7 +44,7 @@ Client::Client(int argc, char *argv[])
   : cfg{argc, argv}
   , rd{}
   , randgen{rd()}
-  , conn_dist{0,(int)cfg.conn_cnt - 1}
+  , conn_dist{0, (int)cfg.conn_cnt - 1}
   , gen{choose_generator(cfg, randgen)}
   , gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
@@ -317,12 +317,10 @@ void Client::print_header(void)
              "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_"
              "stddev"
              "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-             "\twait_stddev\twait_99th\twait_99.9th\twait_max"
-          << endl;
+             "\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
     } else {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-             << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
     }
 }
 

@@ -49,7 +49,7 @@ class synreq
 static void __read_completion_handler(Sock *s, void *data, int status);
 
 /* Constructor */
-synthetic::synthetic(const Config & cfg, std::mt19937 &rand)
+synthetic::synthetic(const Config &cfg, std::mt19937 &rand)
   : cfg_(cfg)
   , rand_{rand}
   , service_dist_exp{1.0 / cfg.service_us}

@@ -16,6 +16,9 @@ This library is BSD-licensed.
 This project uses automake and autoconf for its build system. To build:
 
 ``` sh
+git submodule init
+git submodule update
+./libeventm/autogen.sh
 ./autogen.sh
 ./configure
 make

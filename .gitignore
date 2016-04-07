@@ -44,3 +44,7 @@ test/*.log
 test/*.trs
 test-driver
 test-suite.log
+
+# Editor files
+.ycm_extra_conf.py*
+cscope.out

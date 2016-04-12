@@ -16,8 +16,7 @@ using namespace std;
 /**
  * Tracks an outstanding synthetic request.
  */
-struct synreq
-{
+struct synreq {
     using request_cb = generator::request_cb;
     using time_point = generator::time_point;
 

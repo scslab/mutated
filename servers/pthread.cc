@@ -46,20 +46,20 @@ static void *thread_handler(void *arg)
     struct resp_pkt resp;
 
     while (true) {
-      ret = read(fd, (void *)&req, sizeof(req));
-      if (ret != sizeof(req)) {
-          close(fd);
-          return nullptr;
-      }
+        ret = read(fd, (void *)&req, sizeof(req));
+        if (ret != sizeof(req)) {
+            close(fd);
+            return nullptr;
+        }
 
-      do_work(&req);
+        do_work(&req);
 
-      resp.tag = req.tag;
-      ret = write(fd, (void *)&resp, sizeof(resp));
-      if (ret != sizeof(resp)) {
-          close(fd);
-          return nullptr;
-      }
+        resp.tag = req.tag;
+        ret = write(fd, (void *)&resp, sizeof(resp));
+        if (ret != sizeof(resp)) {
+            close(fd);
+            return nullptr;
+        }
     }
 }
 

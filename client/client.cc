@@ -317,10 +317,12 @@ void Client::print_header(void)
              "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_"
              "stddev"
              "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-             "\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
+             "\twait_stddev\twait_99th\twait_99.9th\twait_max"
+          << endl;
     } else {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+             << endl;
     }
 }
 

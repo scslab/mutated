@@ -25,15 +25,23 @@ struct ioop {
     size_t len;
     void *cb_data;
     ioop_cb cb;
-    
-    ioop(void) : len{0}, cb_data{nullptr}, cb{} {}
-  
-    ioop(size_t len_, void *data_, ioop_cb complete_)
-      : len{len_}, cb_data{data_}, cb{complete_}
-    {}
 
-    ioop(const ioop&) = default;
-    ioop & operator=(const ioop&) = default;
+    ioop(void)
+      : len{0}
+      , cb_data{nullptr}
+      , cb{}
+    {
+    }
+
+    ioop(size_t len_, void *data_, ioop_cb complete_)
+      : len{len_}
+      , cb_data{data_}
+      , cb{complete_}
+    {
+    }
+
+    ioop(const ioop &) = default;
+    ioop &operator=(const ioop &) = default;
 };
 
 /**

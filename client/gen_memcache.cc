@@ -16,8 +16,7 @@ static constexpr size_t MAX_MEM_RESP = 100;
 /**
  * Tracks an outstanding memcache request.
  */
-struct memreq
-{
+struct memreq {
     using request_cb = generator::request_cb;
     using time_point = generator::time_point;
 
@@ -30,7 +29,8 @@ struct memreq
       : measure{m}
       , cb{c}
       , start_ts{generator::clock::now()}
-    {}
+    {
+    }
 };
 
 static void __read_completion_handler(Sock *, char *, size_t, char *, size_t,
@@ -54,7 +54,7 @@ void memcache::send_request(Sock *sock, bool measure, request_cb cb)
     size_t n = strlen(getreq), n1 = n;
     auto wptrs = sock->write_prepare(n1);
     memcpy(wptrs.first, getreq, n1);
-    if  (n != n1) {
+    if (n != n1) {
         memcpy(wptrs.second, getreq + n1, n - n1);
     }
     sock->write_commit(n);
@@ -82,7 +82,7 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
     }
 
     // parse packet
-    memreq *req = (memreq *) data;
+    memreq *req = (memreq *)data;
     auto now = generator::clock::now();
     auto delta = now - req->start_ts;
     if (delta <= generator::duration(0)) {

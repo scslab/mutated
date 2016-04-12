@@ -20,13 +20,10 @@ static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl
-             << endl;
+        cerr << "invalid arguments!" << endl << endl;
     }
 
-    cerr << "Usage: "
-         << prog
-         << " [options] "
+    cerr << "Usage: " << prog << " [options] "
          << "<ip:port> <generator> <exp. service us> <req/sec>" << endl
          << endl;
     cerr << "Options:" << endl;
@@ -37,8 +34,11 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;
     cerr << "  -l STR: label for machine-readable output (-r)" << endl;
     cerr << "  -m OPT: connection mode (default: round_robin)" << endl;
-    cerr << "  -d OPT: the service time distribution (default: exponential)" << endl;
-    cerr << "  -n INT: the number of connections to open (round robin/random mode)" << endl;
+    cerr << "  -d OPT: the service time distribution (default: exponential)"
+         << endl;
+    cerr << "  -n INT: the number of connections to open (round robin/random "
+            "mode)"
+         << endl;
     cerr << endl;
     cerr << "  generators: synthetic, memcache" << endl;
     cerr << "  connection modes: per_request, round_robin, random" << endl;

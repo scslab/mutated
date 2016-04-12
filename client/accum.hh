@@ -1,13 +1,12 @@
 #ifndef MUTATED_ACCUM_HH
 #define MUTATED_ACCUM_HH
 
-/**
- * acumm.h - an accumulator utility
- */
-
 #include <cstdint>
 #include <vector>
 
+/**
+ * A sample accumulator container.
+ */
 class accum
 {
   private:

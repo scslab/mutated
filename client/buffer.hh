@@ -135,16 +135,14 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     buffer operator=(const buffer &) = delete;
     buffer operator=(buffer &&) = delete;
 
-    // TODO: avail/items are not the clearest names
-
     /* Size returns the size of the buffer. */
     size_type size(void) const noexcept { return BUFSZ; }
 
-    /* Avail returns the available space in the buffer. */
-    size_type avail(void) const noexcept { return BUFSZ - used_; }
-
     /* Stored returns the amount of useful data stored in the buffer. */
     size_type items(void) const noexcept { return used_; }
+
+    /* Space returns the available space in the buffer. */
+    size_type space(void) const noexcept { return BUFSZ - used_; }
 
     /**
      * Queue_prep prepares a queue operation by returning a pair of pointers
@@ -162,7 +160,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         } else if (used_ == BUFSZ) {
             throw std::system_error(ENOSPC, std::system_category(),
                                     "buffer::queue_prep: buffer full");
-        } else if (len > avail()) {
+        } else if (len > space()) {
             throw std::system_error(
               ENOSPC, std::system_category(),
               "buffer::queue_prep: not enough buffer space ");
@@ -192,7 +190,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         } else if (used_ == BUFSZ) {
             throw std::system_error(ENOSPC, std::system_category(),
                                     "buffer::queue_commit: buffer full");
-        } else if (len > avail()) {
+        } else if (len > space()) {
             throw std::system_error(
               ENOSPC, std::system_category(),
               "buffer::queue_commit: not enough buffer space ");
@@ -220,8 +218,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
      */
     pointer queue(size_type &len)
     {
-        if (len > avail()) {
-            len = avail();
+        if (len > space()) {
+            len = space();
         }
         auto ptrs = queue_prep(len);
         queue_commit(len);
@@ -325,6 +323,6 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 };
 
-using charbuf = buffer<char, 1024 * 1024>;
+using charbuf = buffer<char, 10 * 1024 * 1024>;
 
 #endif /* MUTATED_BUFFER_HH */

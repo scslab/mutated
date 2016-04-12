@@ -11,5 +11,10 @@ client_SOURCES = \
 	gen_synthetic.hh gen_synthetic.cc \
 	main.cc \
 	opts.hh opts.cc \
-	socket2.hh socket2.cc \
+	socket_buf.hh socket_buf.cc \
 	util.hh util.cc
+
+# We don't compile the following files:
+#   socket_vec.hh socket_vec.cc
+# as they provide an older, conflicting implementation of the Sock class. We
+# leave present though as it's still useful code.

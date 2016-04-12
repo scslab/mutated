@@ -1,8 +1,3 @@
-/*
- * gen_synthetic -- creates read and write requests on the specified socket
- * conforming to the synthetic protocol.
- */
-
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -13,21 +8,20 @@
 
 #include "gen_synthetic.hh"
 #include "protocol.hh"
-#include "socket2.hh"
+#include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
 
 /**
- * Tracks an outstanding request to the service we are generating load against.
+ * Tracks an outstanding synthetic request.
  */
-class synreq
+struct synreq
 {
-  public:
     using request_cb = generator::request_cb;
     using time_point = generator::time_point;
 
-    bool should_measure;
+    bool measure;
     request_cb cb;
     time_point start_ts;
     uint64_t service_us;
@@ -35,7 +29,7 @@ class synreq
     resp_pkt resp;
 
     synreq(bool m, request_cb c, uint64_t service)
-      : should_measure{m}
+      : measure{m}
       , cb{c}
       , start_ts{generator::clock::now()}
       , service_us{service}
@@ -72,25 +66,23 @@ uint64_t synthetic::gen_service_time(void)
 }
 
 /* Generate and send a new request */
-void synthetic::send_request(Sock *sock, bool should_measure, request_cb cb)
+void synthetic::send_request(Sock *sock, bool measure, request_cb cb)
 {
     // create our synreq
-    synreq *req = new synreq(should_measure, cb, gen_service_time());
+    synreq *req = new synreq(measure, cb, gen_service_time());
     req->req.tag = (uint64_t)req; // store pointer to ourselves in tag
 
     // add synreq to write queue
     size_t n = sizeof(req_pkt), n1 = n;
-    auto wptrs = sock->write(n1);
+    auto wptrs = sock->write_prepare(n1);
     memcpy(wptrs.first, &req->req, n1);
     if (n != n1) {
         memcpy(wptrs.second, &req->req + n1, n - n1);
     }
+    sock->write_commit(n);
 
     // add response to read queue
-    ioop io;
-    io.cb_data = req;
-    io.cb = &__read_completion_handler;
-    io.len = sizeof(resp_pkt);
+    ioop io(sizeof(resp_pkt), req, &__read_completion_handler);
     sock->read(io);
 }
 
@@ -129,7 +121,7 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
     } else {
         wait_us = 0;
     }
-    req->cb(service_us, wait_us, req->should_measure);
+    req->cb(service_us, wait_us, req->measure);
 
     delete req;
     sock->put(); // indicate end of request

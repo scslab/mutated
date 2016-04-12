@@ -2,7 +2,8 @@
 #define MUTATED_SOCKET2_HH
 
 /**
- * socket2.h - async socket I/O support
+ * socket_buf.hh - async socket I/O support. A variant that uses circular
+ * buffers internally for memory management of the rx and tx queues.
  */
 
 #include <cstdint>
@@ -21,24 +22,29 @@ struct ioop {
     using ioop_cb =
       std::function<void(Sock *, char *, size_t, char *, size_t, void *, int)>;
 
-    size_t len = 0;
-    void *cb_data = nullptr;
-    ioop_cb cb = nullptr;
+    size_t len;
+    void *cb_data;
+    ioop_cb cb;
+    
+    ioop(void) : len{0}, cb_data{nullptr}, cb{} {}
+  
+    ioop(size_t len_, void *data_, ioop_cb complete_)
+      : len{len_}, cb_data{data_}, cb{complete_}
+    {}
+
+    ioop(const ioop&) = default;
+    ioop & operator=(const ioop&) = default;
 };
 
 /**
- * Asynchronous socket (TCP only).
+ * Asynchronous socket (TCP only). Uses circular buffers internally for
+ * managing rx and tx queues.
  */
 class Sock
 {
   public:
-    /* read buffer size */
-    static constexpr size_t RBUF_SIZ = 1024 * 1024;
-    /* write buffer size */
-    static constexpr size_t WBUF_SIZ = 1024 * 1024;
-
-    /* Maximum number of outstanding vector IO operations */
-    using ioqueue = buffer<ioop, IOV_MAX>;
+    /* Maximum number of outstanding read IO operations */
+    using ioqueue = buffer<ioop, 1024>;
 
   private:
     int ref_cnt;         /* the reference count */
@@ -48,7 +54,7 @@ class Sock
     bool rx_rdy;         /* ready to read? */
     bool tx_rdy;         /* ready to write? */
 
-    ioqueue rxcbs; /* ioops queue */
+    ioqueue rxcbs; /* read queue */
     charbuf rbuf;  /* read buffer */
     charbuf wbuf;  /* write buffer */
 
@@ -83,7 +89,8 @@ class Sock
     void read(const ioop &);
 
     /* Write queuing */
-    std::pair<char *, char *> write(size_t &len);
+    std::pair<char *, char *> write_prepare(size_t &len);
+    void write_commit(const size_t len);
 
     /* Handle epoll events against this socket */
     void run_io(uint32_t events);

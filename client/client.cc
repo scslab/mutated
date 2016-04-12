@@ -10,7 +10,7 @@
 #include "generator.hh"
 #include "gen_memcache.hh"
 #include "gen_synthetic.hh"
-#include "socket2.hh"
+#include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;

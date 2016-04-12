@@ -1,7 +1,5 @@
-/**
- * socket.c - async socket I/O support
- */
 #include <algorithm>
+#include <iostream>
 #include <system_error>
 #include <utility>
 
@@ -14,7 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "socket2.hh"
+#include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
@@ -80,7 +78,7 @@ void Sock::put(void)
     if (--ref_cnt == 0) {
         delete this;
     } else if (ref_cnt < 0) {
-        throw std::runtime_error("sock::put refcnt < 0");
+        throw std::runtime_error("Sock::put refcnt < 0");
     }
 }
 
@@ -129,6 +127,13 @@ void Sock::connect(const char *addr, unsigned short portt)
  */
 void Sock::rx(void)
 {
+    // XXX: this should perhaps be done as a loop until the socket returns
+    // EAGAIN, hard to reason that the current approach is sound. If we finish
+    // an rx() call and haven't pulled all data off the wire, then no future
+    // epoll event will be generated (we are using edge-triggering I believe),
+    // and so we rely on a future app-packet generation event to call rx()...
+    // This seems like it could fail for large app-packet sizes.
+
     // is anything pending for read?
     if (rxcbs.items() == 0) {
         return;
@@ -136,7 +141,7 @@ void Sock::rx(void)
 
     // do the read
     ssize_t nbytes;
-    size_t n = rbuf.avail(), n1 = n;
+    size_t n = rbuf.space(), n1 = n;
     auto rptrs = rbuf.queue_prep(n1);
     if (rptrs.second == nullptr) {
         // no wrapping, normal read
@@ -240,12 +245,22 @@ void Sock::tx(void)
  * The length of the first segment is returned through len, the length of the
  * second segment is the remaining needed buffer to fullfill the request.
  */
-pair<char *, char *> Sock::write(size_t &len)
+pair<char *, char *> Sock::write_prepare(size_t &len)
 {
-    size_t fulllen = len;
-    auto wptrs = wbuf.queue_prep(len);
-    wbuf.queue_commit(fulllen);
-    return wptrs;
+    return wbuf.queue_prep(len);
+}
+
+/**
+ * Commit a previously prepared write on this socket, making it available for
+ * transmission.
+ * @len: the length of previously prepared write to commit.
+ */
+void Sock::write_commit(const size_t len)
+{
+    wbuf.queue_commit(len);
+    if (tx_rdy) {
+        tx();
+    }
 }
 
 /**

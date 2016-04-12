@@ -2,7 +2,8 @@
 #define MUTATED_SOCKET_HH
 
 /**
- * socket.h - async socket I/O support
+ * socket_vec.hh - async socket I/O support. Relies on the user of the socket
+ * to provide appropriately sized buffers for all read and write operations.
  */
 
 #include <cstdint>

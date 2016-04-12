@@ -1,6 +1,3 @@
-/**
- * socket.c - async socket I/O support
- */
 #include <algorithm>
 #include <system_error>
 
@@ -13,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "socket.hh"
+#include "socket_vec.hh"
 #include "util.hh"
 
 using namespace std;

@@ -1,20 +1,16 @@
 #ifndef MUTATED_GENERATOR_HH
 #define MUTATED_GENERATOR_HH
 
-/**
- * generator.h - support for load generators
- */
-
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <random>
 
 #include "opts.hh"
-#include "socket2.hh"
+#include "socket_buf.hh"
 
 /**
- * Abstract class defining the interface all generators must support.
+ * Abstract class defining the interface all load generators must support.
  */
 class generator
 {

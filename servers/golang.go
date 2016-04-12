@@ -24,21 +24,19 @@ type reqPkt struct {
 }
 
 func serveRequest(c net.Conn) {
-	var req reqPkt
-	var resp uint64
-
 	defer c.Close()
 
-	err := binary.Read(c, binary.LittleEndian, &req)
-	if err != nil {
-		return
+	for {
+		var req reqPkt
+		err := binary.Read(c, binary.LittleEndian, &req)
+		if err != nil {
+			return
+		}
+
+		resp := req.Tag
+		workload(int64(req.Delays[0]) * itersPerUsec)
+		binary.Write(c, binary.LittleEndian, &resp)
 	}
-
-	//log.Print(req)
-
-	resp = req.Tag
-	workload(int64(req.Delays[0]) * itersPerUsec)
-	binary.Write(c, binary.LittleEndian, &resp)
 }
 
 func callibrate() {

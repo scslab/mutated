@@ -69,7 +69,7 @@ static int setup_server(void)
 /**
  * Services a workload for a file descriptor.
  */
-static void do_workload(int fd)
+static bool do_workload(int fd)
 {
     int ret;
     struct req_pkt req;
@@ -83,8 +83,9 @@ static void do_workload(int fd)
 
     ret = read(fd, (void *)&req, sizeof(req));
     if (ret != sizeof(req)) {
-        // this could happen if the load generator terminates
-        goto out;
+        free(w);
+        close(fd);
+        return false;
     }
 
     workload_run(w, req.delays[0]);
@@ -92,23 +93,23 @@ static void do_workload(int fd)
     resp.tag = req.tag;
     ret = write(fd, (void *)&resp, sizeof(resp));
     if (ret != sizeof(resp)) {
-        // this could happen if the load generator terminates
-        goto out;
+        free(w);
+        close(fd);
+        return false;
     }
 
-out:
-    free(w);
-    close(fd);
+    return true;
 }
 
 static void *worker_thread(void *arg)
 {
     int fd, cpu = (long)arg;
+    bool cont;
 
     set_affinity(cpu);
 
     pthread_mutex_lock(&lock);
-    while (1) {
+    while (true) {
         while (reqs.empty()) {
             pthread_cond_wait(&cond, &lock);
         }
@@ -117,12 +118,15 @@ static void *worker_thread(void *arg)
         reqs.pop_back();
         pthread_mutex_unlock(&lock);
 
-        do_workload(fd);
+        cont = do_workload(fd);
 
         pthread_mutex_lock(&lock);
+        if (cont) {
+          reqs.push_front(fd);
+        }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static void main_thread(int server_fd)

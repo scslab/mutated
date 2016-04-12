@@ -30,7 +30,7 @@ static void do_work(struct req_pkt *req)
     for (i = 0; i < req->nr; i++) {
         if (req->delays[i] & REQ_DELAY_SLEEP) {
             us_to_timespec(req->delays[i], &ts);
-            nanosleep(&ts, NULL);
+            nanosleep(&ts, nullptr);
         } else {
             workload_run(w, (req->delays[i] & REQ_DELAY_MASK));
         }
@@ -45,24 +45,22 @@ static void *thread_handler(void *arg)
     struct req_pkt req;
     struct resp_pkt resp;
 
-    ret = read(fd, (void *)&req, sizeof(req));
-    if (ret != sizeof(req)) {
-        // this could happen if the load generator terminates
-        goto out;
+    while (true) {
+      ret = read(fd, (void *)&req, sizeof(req));
+      if (ret != sizeof(req)) {
+          close(fd);
+          return nullptr;
+      }
+
+      do_work(&req);
+
+      resp.tag = req.tag;
+      ret = write(fd, (void *)&resp, sizeof(resp));
+      if (ret != sizeof(resp)) {
+          close(fd);
+          return nullptr;
+      }
     }
-
-    do_work(&req);
-
-    resp.tag = req.tag;
-    ret = write(fd, (void *)&resp, sizeof(resp));
-    if (ret != sizeof(resp)) {
-        // this could happen if the load generator terminates
-        goto out;
-    }
-
-out:
-    close(fd);
-    return NULL;
 }
 
 int main(void)
@@ -118,7 +116,7 @@ int main(void)
             exit(1);
         }
 
-        ret = pthread_create(&tid, NULL, thread_handler, (void *)(long)fd);
+        ret = pthread_create(&tid, nullptr, thread_handler, (void *)(long)fd);
         if (ret == -1) {
             perror("pthread_create()");
             exit(1);

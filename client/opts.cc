@@ -8,12 +8,11 @@
 
 using namespace std;
 
-/* Microseconds in a second. */
-// TODO: Duplicated in client.cc
-static constexpr double USEC = 1000000;
-
 /* Fixed arguments required */
 static constexpr size_t FIXED_ARGS = 4;
+
+/* Default number of seconds to sample for */
+static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
 
 /**
  * Print usage message and exit with status.
@@ -25,26 +24,25 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
              << endl;
     }
 
-    cerr << "usage: " << prog
-         << " [-h] [-r] [-n integer] [-w integer] [-s integer] [-c integer] "
-            "[-m string] [-d string] [-l string] "
-            "<ip:port> <generator> <service_us> <req_per_sec> [<args>]" << endl
+    cerr << "Usage: "
+         << prog
+         << " [options] "
+         << "<ip:port> <generator> <exp. service us> <req/sec>" << endl
          << endl;
-    cerr << "  -h: help" << endl;
-    cerr << "  -r: raw machine-readable format" << endl;
-    cerr << "  -w: warm-up seconds" << endl;
-    cerr << "  -s: measurement sample count" << endl;
-    cerr << "  -c: cool-down seconds" << endl;
-    cerr << "  -l: label for machine-readable output (-r)" << endl;
-    cerr << "  -m: connection mode ('per_request', 'round_robin', or 'random')"
-         << endl;
-    cerr
-      << "  -d: the service time distribution ('fixed', 'exp', or 'lognorm')"
-      << endl;
-    cerr << "  -n: the number of connections to open (if round robin mode)"
-         << endl;
+    cerr << "Options:" << endl;
+    cerr << "  -h    : help" << endl;
+    cerr << "  -r STR: raw machine-readable format" << endl;
+    cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
+    cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
+    cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;
+    cerr << "  -l STR: label for machine-readable output (-r)" << endl;
+    cerr << "  -m OPT: connection mode (default: round_robin)" << endl;
+    cerr << "  -d OPT: the service time distribution (default: exponential)" << endl;
+    cerr << "  -n INT: the number of connections to open (round robin/random mode)" << endl;
     cerr << endl;
     cerr << "  generators: synthetic, memcache" << endl;
+    cerr << "  connection modes: per_request, round_robin, random" << endl;
+    cerr << "  service distribution: fixed, exp, lognorm" << endl;
 
     exit(status);
 }
@@ -59,7 +57,7 @@ Config::Config(int argc, char *argv[])
   , req_s{0}
   , warmup_seconds{5}
   , cooldown_seconds{5}
-  , samples{1000}
+  , samples{0}
   , machine_readable{false}
   , conn_mode{ROUND_ROBIN}
   , conn_cnt{10}
@@ -140,12 +138,14 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
-    req_s = USEC / service_us;
     ret = sscanf(argv[optind + 3], "%lf", &req_s);
     if (ret != 1) {
         __printUsage(argv[0]);
     }
 
+    if (samples == 0) {
+        samples = req_s * DEFAULT_SAMPLE_S;
+    }
     gen_argc = argc - optind - FIXED_ARGS;
     gen_argv = &argv[gen_argc];
 }

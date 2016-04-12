@@ -17,7 +17,6 @@ using namespace std;
 using namespace std::placeholders;
 
 /* Microseconds in a second. */
-// TODO: Duplicated in opts.cc
 static constexpr double USEC = 1000000;
 static constexpr double NSEC = 1000000000;
 

@@ -233,12 +233,11 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
      * moving.
      * @args: arguments to forward to the constructor of the item.
      */
-    template<class... Args>
-    reference queue_emplace(Args&&... args)
+    template <class... Args> reference queue_emplace(Args &&... args)
     {
         size_type n = 1;
         pointer p = queue(n);
-        ::new (static_cast<void*>(p)) value_type(std::forward<Args>(args)...);
+        ::new (static_cast<void *>(p)) value_type(std::forward<Args>(args)...);
         return *p;
     }
 

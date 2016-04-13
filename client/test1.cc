@@ -7,7 +7,7 @@
 
 using namespace std;
 
-void testRandomShare1(mt19937 & rand)
+void testRandomShare1(mt19937 &rand)
 {
     exponential_distribution<double> ed1;
     cout << ed1(rand) << endl;
@@ -18,7 +18,7 @@ void testRandomShare1(mt19937 & rand)
     cout << ed1(rand) << endl;
 }
 
-void testRandomShare2(mt19937 & rand)
+void testRandomShare2(mt19937 &rand)
 {
     exponential_distribution<double> ed1;
     exponential_distribution<double> ed2;
@@ -36,35 +36,39 @@ class AllocLog
     int id;
 
   public:
-    AllocLog(void) : id{0}
+    AllocLog(void)
+      : id{0}
     {
         cout << "cons (default)" << endl;
     }
 
-    AllocLog(int id_) : id{id_}
+    AllocLog(int id_)
+      : id{id_}
     {
         cout << "cons (id)" << endl;
     }
 
-    AllocLog(const AllocLog & a) : id{a.id}
+    AllocLog(const AllocLog &a)
+      : id{a.id}
     {
         cout << "copy con" << endl;
     }
 
-    AllocLog(AllocLog && a) : id{a.id}
+    AllocLog(AllocLog &&a)
+      : id{a.id}
     {
         cout << "move con" << endl;
         a.id = -1;
     }
 
-    AllocLog & operator=(const AllocLog & a)
+    AllocLog &operator=(const AllocLog &a)
     {
         cout << "copy =" << endl;
         id = a.id;
         return *this;
     }
 
-    AllocLog & operator=(AllocLog && a)
+    AllocLog &operator=(AllocLog &&a)
     {
         cout << "move =" << endl;
         id = a.id;
@@ -78,26 +82,26 @@ class AllocLog
         id = -1;
     }
 
-    static void* operator new(size_t size) // new T
+    static void *operator new(size_t size) // new T
     {
         cout << "new" << endl;
         return malloc(size);
     }
 
-    static void* operator new(size_t size, void *p) // new (p) T
+    static void *operator new(size_t size, void *p) // new (p) T
     {
         UNUSED(size);
         cout << "placement-new" << endl;
         return p;
     }
 
-    static void* operator new[](size_t size) // new T[5]
+    static void *operator new[](size_t size) // new T[5]
     {
         cout << "new[]" << endl;
         return malloc(size);
     }
 
-    static void* operator new[](size_t size, void *p) // new (p) T[5]
+    static void *operator new[](size_t size, void *p) // new (p) T[5]
     {
         UNUSED(size);
         cout << "placement-new[]" << endl;
@@ -124,7 +128,7 @@ int main(int argc, char *argv[])
 {
     UNUSED(argc);
     UNUSED(argv);
-    
+
     // test AllocLog
     cout << "# a1" << endl; // cons
     AllocLog a1;
@@ -156,7 +160,8 @@ int main(int argc, char *argv[])
     a7 = move(a1);
     cout << endl;
 
-    cout << "# a8" << endl; // new[], cons, cons, copy =, decons, decons, delete[]
+    cout << "# a8"
+         << endl; // new[], cons, cons, copy =, decons, decons, delete[]
     AllocLog *a8 = new AllocLog[2];
     a8[0] = a1;
     delete[] a8;

@@ -17,10 +17,10 @@
 using namespace std;
 using namespace std::placeholders;
 
-static int
-epoll_spin(int epfd, struct epoll_event *events, int maxevents, int timeout)
+static int epoll_spin(int epfd, struct epoll_event *events, int maxevents,
+                      int timeout)
 {
-	return (int) syscall(321, epfd, events, maxevents, timeout);
+    return (int)syscall(321, epfd, events, maxevents, timeout);
 }
 
 /* Microseconds in a second. */
@@ -309,7 +309,8 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool measure)
             if (exp_length < clock::duration(0)) {
                 throw runtime_error("experiment finished before it started");
             }
-            double delta_ns = chrono::duration_cast<duration>(exp_length).count();
+            double delta_ns =
+              chrono::duration_cast<duration>(exp_length).count();
             throughput = (double)cfg.samples / (delta_ns / NSEC);
         }
     }

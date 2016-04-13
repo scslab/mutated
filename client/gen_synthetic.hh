@@ -4,21 +4,60 @@
 #include <cstdint>
 #include <random>
 
+#include "buffer.hh"
 #include "generator.hh"
 #include "opts.hh"
+#include "protocol.hh"
 #include "socket_buf.hh"
+
+/**
+ * Tracks an outstanding synthetic request.
+ */
+struct synreq {
+    using request_cb = generator::request_cb;
+    using time_point = generator::time_point;
+
+    bool measure;
+    request_cb cb;
+    time_point start_ts;
+    uint64_t service_us;
+    req_pkt req;
+    resp_pkt resp;
+
+    synreq(void)
+      : synreq(false, nullptr, 0)
+    {
+    }
+
+    synreq(bool m, request_cb c, uint64_t service)
+      : measure{m}
+      , cb{c}
+      , start_ts{generator::clock::now()}
+      , service_us{service}
+      , req{}
+      , resp{}
+    {
+        req.nr = 1;
+        req.delays[0] = service_us;
+    }
+};
 
 /**
  * Generator supporting our own mutated synthetic protocol.
  */
 class synthetic : public generator
 {
+  public:
+    static constexpr std::size_t MAX_OUTSTANDING_REQS = 1024;
+    using req_buffer = buffer<synreq, MAX_OUTSTANDING_REQS>;
+
   private:
     const Config &cfg_;
     std::mt19937 &rand_;
     std::exponential_distribution<double> service_dist_exp;
     std::lognormal_distribution<double> service_dist_lognorm;
     ioop::ioop_cb cb_;
+    req_buffer requests;
 
     uint64_t gen_service_time(void);
     void recv_response(Sock *sock, void *data, char *seg1, size_t n,

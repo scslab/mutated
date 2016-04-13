@@ -1,5 +1,5 @@
-#ifndef MUTATED_SOCKET_HH
-#define MUTATED_SOCKET_HH
+#ifndef MUTATED_SOCKET_VEC_HH
+#define MUTATED_SOCKET_VEC_HH
 
 /**
  * socket_vec.hh - async socket I/O support. Relies on the user of the socket
@@ -14,7 +14,9 @@
 
 class Sock;
 
-/* A vector IO operation (data segment) */
+/**
+ * A vector IO operation (data segment).
+ */
 class vio
 {
   public:
@@ -76,10 +78,7 @@ class Sock
     void tx(void);
 
   public:
-    /* Constructor */
     Sock(void) noexcept;
-
-    /* Deconstructor */
     ~Sock(void) noexcept;
 
     /* Disable copy and move */
@@ -105,4 +104,4 @@ class Sock
     void put(void);          /* Release a reference */
 };
 
-#endif /* MUTATED_SOCKET_HH */
+#endif /* MUTATED_SOCKET_VEC_HH */

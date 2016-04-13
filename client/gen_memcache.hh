@@ -16,9 +16,8 @@ class memcache : public generator
     const Config &cfg_;
 
   public:
-    /* Constructor */
-    memcache(const Config &cfg);
-    ~memcache(void) = default;
+    memcache(const Config &cfg) noexcept;
+    ~memcache(void) noexcept {}
 
     /* No copy or move */
     memcache(const memcache &) = delete;

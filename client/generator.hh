@@ -37,7 +37,6 @@ class generator
     virtual void _send_request(bool measure, request_cb cb) = 0;
 
   public:
-    /* Constructor */
     generator(void) noexcept : ref_cnt_{1}, sock_{} {}
     virtual ~generator(void) noexcept {}
 

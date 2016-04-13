@@ -1,5 +1,5 @@
-#ifndef MUTATED_CLIENT2_HH
-#define MUTATED_CLIENT2_HH
+#ifndef MUTATED_CLIENT_HH
+#define MUTATED_CLIENT_HH
 
 #include <chrono>
 #include <memory>
@@ -47,6 +47,7 @@ class Client
     void setup_connections(void);
     generator *get_connection(void);
     void send_request(void);
+    void epoll_watch(int fd, void *data, uint32_t events);
     void timer_arm(duration deadline);
     void timer_handler(void);
     void setup_deadlines(void);
@@ -55,25 +56,14 @@ class Client
     void print_summary(void);
 
   public:
-    /* Create a new client. */
     Client(int argc, char *argv[]);
-
-    /* Destructor. */
-    ~Client(void);
+    ~Client(void) noexcept;
 
     /* No copy or move. */
     Client(const Client &) = delete;
     Client(Client &&) = delete;
     Client &operator=(const Client &) = delete;
     Client &operator=(Client &&) = delete;
-
-    /**
-     * epoll_watch - registers a file descriptor for epoll events.
-     * @fd: the file descriptor
-     * @data: a cookie for the event
-     * @event: the event mask
-     */
-    void epoll_watch(int fd, void *data, uint32_t events);
 
     /* Run the load generator. */
     void run(void);
@@ -83,4 +73,4 @@ class Client
                        bool should_measure);
 };
 
-#endif /* MUTATED_CLIENT2_HH */
+#endif /* MUTATED_CLIENT_HH */

@@ -11,7 +11,7 @@ client_SOURCES = \
 	main.cc \
 	opts.hh opts.cc \
 	socket_buf.hh socket_buf.cc \
-	util.hh util.cc
+	util.hh
 
 # We don't compile the following files:
 #   socket_vec.hh socket_vec.cc

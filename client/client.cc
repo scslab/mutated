@@ -17,6 +17,9 @@
 using namespace std;
 using namespace std::placeholders;
 
+/**
+ * A syscall implemented on the Shinjuku OS. We don't call on Linux.
+ */
 static int epoll_spin(int epfd, struct epoll_event *events, int maxevents,
                       int timeout)
 {
@@ -61,17 +64,17 @@ Client::Client(int argc, char *argv[])
 /**
  * Destructor.
  */
-Client::~Client(void)
+Client::~Client(void) noexcept
 {
-    SystemCall(close(epollfd), "Client::~Client: close");
-    SystemCall(close(timerfd), "Client::~Client: close");
+    close(epollfd);
+    close(timerfd);
 }
 
 /**
  * epoll_watch - registers a file descriptor for epoll events.
- * @fd: the file descriptor
- * @data: a cookie for the event
- * @event: the event mask
+ * @fd: the file descriptor.
+ * @data: a cookie for the event.
+ * @event: the event mask.
  */
 void Client::epoll_watch(int fd, void *data, uint32_t events)
 {
@@ -114,8 +117,8 @@ void Client::timer_arm(duration deadline)
  */
 void Client::run(void)
 {
-    /* Maximum outstanding epoll events supported. */
-    constexpr size_t MAX_EVENTS = 1000;
+    // Maximum outstanding epoll events supported
+    constexpr size_t MAX_EVENTS = 4096;
     epoll_event events[MAX_EVENTS];
 
     setup_experiment();
@@ -134,7 +137,7 @@ void Client::run(void)
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
 
-            /* is it a timer? */
+            // is it a timer?
             if (ev.data.ptr == nullptr) {
                 timer_handler();
             } else {
@@ -276,15 +279,15 @@ void Client::send_request(void)
     bool measure =
       sent_count >= pre_samples and sent_count < pre_samples + measure_samples;
 
-    // get an available connection
+    // gen is reference counted (get/put, starts at 1) and we'll deallocate it
+    // in `record_sample`.
     generator *gen = get_connection();
-
-    // sock is reference counted (get/put) and we'll deallocate it in the read
-    // callback established by generator.
     gen->send_request(measure, gen_cb);
 }
 
-/* Record a latency sample */
+/**
+ * Record a latency sample.
+ */
 void Client::record_sample(generator *conn, uint64_t service_us,
                            uint64_t wait_us, bool measure)
 {

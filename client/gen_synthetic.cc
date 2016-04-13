@@ -8,13 +8,16 @@
 #include <sys/epoll.h>
 
 #include "gen_synthetic.hh"
+#include "protocol.hh"
 #include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
 using namespace std::placeholders;
 
-/* Constructor */
+/**
+ * Constructor.
+ */
 synthetic::synthetic(const Config &cfg, mt19937 &rand) noexcept
   : cfg_(cfg),
     rand_{rand},
@@ -25,7 +28,9 @@ synthetic::synthetic(const Config &cfg, mt19937 &rand) noexcept
 {
 }
 
-/* Return a service time to use for the next synreq */
+/**
+ * Return a service time to use for the next synreq.
+ */
 uint64_t synthetic::gen_service_time(void)
 {
     if (cfg_.service_dist == cfg_.FIXED) {
@@ -37,7 +42,9 @@ uint64_t synthetic::gen_service_time(void)
     }
 }
 
-/* Generate and send a new request */
+/**
+ * Generate and send a new request.
+ */
 void synthetic::_send_request(bool measure, request_cb cb)
 {
     // create our synreq
@@ -66,7 +73,9 @@ void synthetic::_send_request(bool measure, request_cb cb)
     sock_.read(io);
 }
 
-/* Handle parsing a response from a previous request */
+/**
+ * Handle parsing a response from a previous request.
+ */
 void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
                               char *seg2, size_t m, int status)
 {
@@ -77,8 +86,7 @@ void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
         throw runtime_error("synth::recv_response: wrong socket in callback");
     }
 
-    // just drop on error
-    if (status != 0) {
+    if (status != 0) { // just drop on error
         requests.drop(1);
         return;
     } else if (n + m != sizeof(resp_pkt)) { // ensure valid packet

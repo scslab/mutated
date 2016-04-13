@@ -1,5 +1,5 @@
-#ifndef MUTATED_SOCKET2_HH
-#define MUTATED_SOCKET2_HH
+#ifndef MUTATED_SOCKET_BUF_HH
+#define MUTATED_SOCKET_BUF_HH
 
 /**
  * socket_buf.hh - async socket I/O support. A variant that uses circular
@@ -17,8 +17,12 @@
 
 class Sock;
 
-/* An IO operation */
-struct ioop {
+/**
+ * An IO operation.
+ */
+class ioop
+{
+  public:
     using ioop_cb =
       std::function<void(Sock *, void *, char *, size_t, char *, size_t, int)>;
 
@@ -26,22 +30,18 @@ struct ioop {
     void *cb_data;
     ioop_cb cb;
 
-    ioop(void)
-      : len{0}
-      , cb_data{nullptr}
-      , cb{}
-    {
-    }
+    ioop(void) noexcept : len{0}, cb_data{nullptr}, cb{} {}
 
-    ioop(size_t len_, void *data_, ioop_cb complete_)
-      : len{len_}
-      , cb_data{data_}
-      , cb{complete_}
+    ioop(size_t len_, void *data_, ioop_cb complete_) noexcept
+      : len{len_},
+        cb_data{data_},
+        cb{complete_}
     {
     }
 
     ioop(const ioop &) = default;
     ioop &operator=(const ioop &) = default;
+    ~ioop(void) noexcept {}
 };
 
 /**
@@ -69,10 +69,7 @@ class Sock
     void tx(void); /* transmit handler */
 
   public:
-    /* Constructor */
     Sock(void) noexcept;
-
-    /* Deconstructor */
     ~Sock(void) noexcept;
 
     /* Disable copy and move */
@@ -98,4 +95,4 @@ class Sock
     void run_io(uint32_t events);
 };
 
-#endif /* MUTATED_SOCKET2_HH */
+#endif /* MUTATED_SOCKET_BUF_HH */

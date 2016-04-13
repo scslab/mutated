@@ -2,7 +2,8 @@
 #define MUTATED_BUFFER_HH
 
 /**
- * buffer.hh - circular buffer implementation.
+ * buffer.hh - circular buffer / queue implementation, allows inserting and
+ * removing items in FIFO order.
  */
 
 #include <cstdint>
@@ -100,7 +101,8 @@ class buffer_iterator
 };
 
 /**
- * Circular buffer, only useful in a single-threaded fashion.
+ * A circular buffer / queue, not thread-safe, only useful from one thread.
+ * Allows inserting and removing items in FIFO order.
  */
 template <typename T, std::size_t BUFSZ = 1024> class buffer
 {
@@ -114,20 +116,20 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     using size_type = std::size_t;
 
   private:
-    value_type buf_[BUFSZ]; // buffer
-    pointer head_;          // at-current pointer
-    pointer tail_;          // 1-past pointer
+    value_type buf_[BUFSZ]; // buffer for storage
+    pointer head_;          // head of queue (at-current pointer)
+    pointer tail_;          // tail of queue (1-past pointer)
     size_type used_;
 
     const_pointer bufcap(void) const noexcept { return buf_ + BUFSZ; }
 
   public:
     /**
-     * Construct a new buffer.
+     * Construct a new circular buffer.
      */
     buffer(void) noexcept : head_{buf_}, tail_{buf_}, used_{0} {}
 
-    /* Deconstruct a buffer. */
+    /* Deconstruct a circular buffer. */
     ~buffer(void) noexcept {}
 
     /* Don't allow copy or move */
@@ -136,18 +138,18 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     buffer operator=(const buffer &) = delete;
     buffer operator=(buffer &&) = delete;
 
-    /* Size returns the size of the buffer. */
+    /* Size returns the size of the circular buffer. */
     size_type size(void) const noexcept { return BUFSZ; }
 
-    /* Stored returns the amount of useful data stored in the buffer. */
+    /* Items returns the number of items stored in the circular buffer. */
     size_type items(void) const noexcept { return used_; }
 
-    /* Space returns the available space in the buffer. */
+    /* Space returns the available free slots in the circular buffer. */
     size_type space(void) const noexcept { return BUFSZ - used_; }
 
     /**
      * Queue_prep prepares a queue operation by returning a pair of pointers
-     * that satisfies the request len of the buffer. The length of the
+     * that satisfies the request len of the circular buffer. The length of the
      * array pointed to by the first element of the pair is returned by len.
      * @len: the space requested to queue items.
      * @return: a pair of pointers satisfying the request, the length of the
@@ -181,7 +183,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
 
     /**
      * Queue_commit finalizes a previously prepare queue (queue_prep), marking
-     * that amount of space as queued.
+     * that amount of space as queued / in-use.
      * @len: the amount of space to regard as committed.
      */
     void queue_commit(const size_type len)
@@ -211,10 +213,10 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * Queue returns a continguous array (segment) at most as large as the
-     * requested length, but possibly smaller (if need to wrap).
-     * @len: the requested length, and on return the actual length of the
-     * segment.
+     * Queue returns a contiguous array (segment) at most as large as the
+     * requested length, but possibly smaller, at the end of the queue.
+     * @len: the requested length, and on return, the actual length of the
+     * returned array.
      * @return: the contiguous array of length len.
      */
     pointer queue(size_type &len)
@@ -229,8 +231,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
 
     /**
      * Queue_emplace constructs a new item on the end of the queue in-place
-     * through the use of placement-new. This avoids any unnecessary copying or
-     * moving.
+     * through the use of placement-new. The item is stored at the end of the
+     * queue. This avoids any unnecessary copying or moving.
      * @args: arguments to forward to the constructor of the item.
      */
     template <class... Args> reference queue_emplace(Args &&... args)
@@ -242,10 +244,10 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * Peek returns a pair of pointers to satisfy the request for a array
-     * segment of length len. Since we may need to wrap to return len array
-     * items, we return a pair of pointers and set len on return to the size of
-     * the array the first pointer refers to.
+     * Peek returns a pair of pointers to satisfy the request for a array of
+     * length len from the head of the queue. Since we may need to wrap to
+     * return len array items, we return a pair of pointers and set len on
+     * return to the size of the array the first pointer refers to.
      * @len: the requested array size, and on return, the size of the first
      * array.
      * @return: a pair of arrays that together have len items. The second array
@@ -277,7 +279,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * Drop drops len items from the buffer.
+     * Drop drops len items from the circular buffer, from the start of the
+     * queue.
      * @len: the number of items to drop.
      */
     void drop(const size_type len)
@@ -302,14 +305,14 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * Clear removes all items from the buffer.
+     * Clear removes all items from the circular buffer.
      */
     void clear(void) { drop(items()); }
 
     /**
      * Dequeue returns a pointer to a contiguous array as close to the
      * requested length as possible, and, frees that space for future queue
-     * operations.
+     * operations. Items are removed from the start of the queue.
      * @len: the request array size, and on return, the size of the returned
      * array.
      * @return: a contiguous array of size len.
@@ -325,7 +328,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * Dequeue_one dequeues the first item in the queue.
+     * Dequeue_one dequeues the first item in the circular buffer / queue.
      * @return: the item at the front of the queue.
      */
     reference dequeue_one(void)
@@ -334,6 +337,10 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         return *dequeue(n);
     }
 
+    /**
+     * Begin returns an iterator for the circular buffer pointing to the start
+     * of the queue.
+     */
     iterator begin(void)
     {
         if (used_ == 0 or head_ < tail_) {
@@ -343,6 +350,10 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         }
     }
 
+    /**
+     * End returns an iterator for the circular buffer pointing to the end of
+     * the queue.
+     */
     iterator end(void)
     {
         if (used_ == 0 or head_ < tail_) {
@@ -353,6 +364,9 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 };
 
+/**
+ * A character buffer is a 10MB buffer storing char's.
+ */
 using charbuf = buffer<char, 10 * 1024 * 1024>;
 
 #endif /* MUTATED_BUFFER_HH */

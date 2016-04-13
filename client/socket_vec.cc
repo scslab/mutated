@@ -47,15 +47,14 @@ Sock::~Sock(void) noexcept
     }
 
     if (fd_ >= 0) {
-        /* Explicitly send a FIN */
+        // Explicitly send a FIN
         shutdown(fd_, SHUT_RDWR);
 
-        /* Turn on (zero-length) linger to avoid running out of ports by
-         * sending a RST when we close the file descriptor.
-         *
-         * ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845
-         * for details.
-         */
+        // Turn on (zero-length) linger to avoid running out of ports by
+        // sending a RST when we close the file descriptor.
+        //
+        // ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845
+        // for details.
         linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
@@ -63,6 +62,13 @@ Sock::~Sock(void) noexcept
                    sizeof(linger));
         close(fd_);
     }
+
+    fd_ = -1;
+    connected = false;
+    rx_rdy = false;
+    tx_rdy = false;
+    rx_nrents = 0;
+    tx_nrents = 0;
 }
 
 /**
@@ -84,8 +90,8 @@ void Sock::put(void)
 
 /**
  * connect - establishes an outgoing TCP connection.
- * @addr: the IPv4 address
- * @port: the destination port
+ * @addr: the IPv4 address.
+ * @port: the destination port.
  *
  * NOTE: disables nagle and makes the socket nonblocking.
  */
@@ -98,12 +104,12 @@ void Sock::connect(const char *addr, unsigned short portt)
     fd_ =
       SystemCall(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
 
-    /* make the socket nonblocking */
+    // make the socket nonblocking
     opts = SystemCall(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
     opts = (opts | O_NONBLOCK);
     SystemCall(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
 
-    /* connect */
+    // connect
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = inet_addr(addr);
@@ -115,7 +121,7 @@ void Sock::connect(const char *addr, unsigned short portt)
                            "Sock::connect: connect()");
     }
 
-    /* disable TCP nagle algorithm (for lower latency) */
+    // disable TCP nagle algorithm (for lower latency)
     opts = 1;
     SystemCall(
       setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int)),
@@ -127,19 +133,19 @@ void Sock::connect(const char *addr, unsigned short portt)
  */
 void Sock::rx(void)
 {
-    /* is anything pending for read? */
+    // is anything pending for read?
     if (rx_nrents == 0) {
         return;
     }
 
-    /* prepare io read vector */
+    // prepare io read vector
     iovec *iov = (iovec *)alloca(sizeof(iovec) * rx_nrents);
     for (size_t i = 0; i < rx_nrents; i++) {
         iov[i].iov_base = rx_ents[i].buf;
         iov[i].iov_len = rx_ents[i].len;
     }
 
-    /* read io vector from wire */
+    // read io vector from wire
     ssize_t ret = readv(fd_, iov, rx_nrents);
     if (ret < 0 and errno == EAGAIN) {
         rx_rdy = false;
@@ -148,11 +154,11 @@ void Sock::rx(void)
         throw system_error(errno, system_category(), "Sock::rx: readv error");
     }
 
-    /* update outstanding IO given bytes read */
+    // update outstanding IO given bytes read
     get();
     for (size_t i = 0; i < rx_nrents; i++) {
         if ((size_t)ret < rx_ents[i].len) {
-            /* partial read */
+            // partial read
             rx_ents[i].len -= ret;
             rx_ents[i].buf += ret;
 
@@ -163,7 +169,7 @@ void Sock::rx(void)
             return;
         }
 
-        /* full read, invoke callback */
+        // full read, invoke callback
         if (rx_ents[i].complete) {
             rx_ents[i].complete(this, rx_ents[i].cb_data, 0);
         }
@@ -179,7 +185,7 @@ void Sock::rx(void)
 
 /**
  * read - enqueue data to receive from the socket and read if socket ready.
- * @ent: the scatter-gather entry
+ * @ent: the scatter-gather entry.
  */
 void Sock::read(const vio &ent)
 {
@@ -196,23 +202,22 @@ void Sock::read(const vio &ent)
 
 /**
  * tx - push pending writes to the wire.
- * @s: the socket
  */
 void Sock::tx(void)
 {
-    /* is anything pending for send? */
+    // is anything pending for send?
     if (tx_nrents == 0) {
         return;
     }
 
-    /* prepare io write vector */
+    // prepare io write vector
     iovec *iov = (iovec *)alloca(sizeof(iovec) * tx_nrents);
     for (size_t i = 0; i < tx_nrents; i++) {
         iov[i].iov_base = tx_ents[i].buf;
         iov[i].iov_len = tx_ents[i].len;
     }
 
-    /* write io vector to wire */
+    // write io vector to wire
     ssize_t nbytes = writev(fd_, iov, tx_nrents);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
@@ -224,11 +229,11 @@ void Sock::tx(void)
         }
     }
 
-    /* update outstanding IO given bytes written */
+    // update outstanding IO given bytes written
     get();
     for (size_t i = 0; i < tx_nrents; i++) {
         if ((size_t)nbytes < tx_ents[i].len) {
-            /* partial write */
+            // partial write
             tx_ents[i].len -= nbytes;
             tx_ents[i].buf += nbytes;
 
@@ -239,7 +244,7 @@ void Sock::tx(void)
             return;
         }
 
-        /* full write, invoke callback */
+        // full write, invoke callback
         if (tx_ents[i].complete) {
             tx_ents[i].complete(this, tx_ents[i].cb_data, 0);
         }
@@ -255,7 +260,7 @@ void Sock::tx(void)
 
 /**
  * write - enqueue data to send on the socket and send if socket ready.
- * @ent: the scatter-gather entry
+ * @ent: the scatter-gather entry.
  */
 void Sock::write(const vio &ent)
 {
@@ -272,8 +277,8 @@ void Sock::write(const vio &ent)
 
 /**
  * __socket_check_connected - check if their is a socket error on the file.
- * @fd: the file descriptor to check for a socket error
- * @return: throws the error if present.
+ * @fd: the file descriptor to check for a socket error.
+ * @return: throws the exception if present.
  */
 static void __socket_check_connected(int fd)
 {

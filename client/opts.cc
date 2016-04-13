@@ -8,10 +8,10 @@
 
 using namespace std;
 
-/* Fixed arguments required */
+/* Fixed arguments required. */
 static constexpr size_t FIXED_ARGS = 4;
 
-/* Default number of seconds to sample for */
+/* Default number of seconds to sample for. */
 static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
 
 /**

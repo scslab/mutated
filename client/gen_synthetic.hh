@@ -7,7 +7,6 @@
 #include "buffer.hh"
 #include "generator.hh"
 #include "opts.hh"
-#include "protocol.hh"
 #include "socket_buf.hh"
 
 /**
@@ -58,9 +57,8 @@ class synthetic : public generator
     void _send_request(bool measure, request_cb cb) override;
 
   public:
-    /* Constructor */
     synthetic(const Config &cfg, std::mt19937 &rand) noexcept;
-    ~synthetic(void) noexcept = default;
+    ~synthetic(void) noexcept {}
 
     /* No copy or move */
     synthetic(const synthetic &) = delete;

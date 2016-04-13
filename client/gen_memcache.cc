@@ -38,13 +38,14 @@ static void __read_completion_handler(Sock *, char *, size_t, char *, size_t,
 
 static const char *getreq = "get a\r\n";
 
-/* Constructor */
-memcache::memcache(const Config &cfg)
-  : cfg_(cfg)
-{
-}
+/**
+ * Constructor.
+ */
+memcache::memcache(const Config &cfg) noexcept : cfg_(cfg) {}
 
-/* Generate and send a new request */
+/**
+ * Generate and send a new request.
+ */
 void memcache::send_request(bool measure, request_cb cb)
 {
     // create our request
@@ -64,7 +65,9 @@ void memcache::send_request(bool measure, request_cb cb)
     sock.read(io);
 }
 
-/* Handle parsing a memcache response from a previous request */
+/**
+ * Handle parsing a memcache response from a previous request.
+ */
 static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
                                       char *seg2, size_t m, void *data,
                                       int status)

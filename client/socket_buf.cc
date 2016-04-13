@@ -43,18 +43,17 @@ Sock::~Sock(void) noexcept
         }
     }
 
-    /* we don't check for any errors since difficult to handle in a
-     * deconstructor */
+    // we don't check for any errors since difficult to handle in a
+    // deconstructor
     if (fd_ >= 0) {
-        /* Explicitly send a FIN */
+        // Explicitly send a FIN
         shutdown(fd_, SHUT_RDWR);
 
-        /* Turn on (zero-length) linger to avoid running out of ports by
-         * sending a RST when we close the file descriptor.
-         *
-         * ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845
-         * for details.
-         */
+        // Turn on (zero-length) linger to avoid running out of ports by
+        // sending a RST when we close the file descriptor.
+        //
+        // ezyang: see my writeup at http://stackoverflow.com/a/28377819/23845
+        // for details.
         linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
@@ -63,17 +62,17 @@ Sock::~Sock(void) noexcept
         close(fd_);
     }
 
-    rxcbs.clear();
     fd_ = -1;
     connected = false;
     rx_rdy = false;
     tx_rdy = false;
+    rxcbs.clear();
 }
 
 /**
  * connect - establishes an outgoing TCP connection.
- * @addr: the IPv4 address
- * @port: the destination port
+ * @addr: the IPv4 address.
+ * @port: the destination port.
  *
  * NOTE: disables nagle and makes the socket nonblocking.
  */
@@ -86,12 +85,12 @@ void Sock::connect(const char *addr, unsigned short portt)
     fd_ =
       SystemCall(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
 
-    /* make the socket nonblocking */
+    // make the socket nonblocking
     opts = SystemCall(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
     opts = (opts | O_NONBLOCK);
     SystemCall(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
 
-    /* connect */
+    // connect
     memset(&saddr, 0, sizeof(saddr));
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = inet_addr(addr);
@@ -103,7 +102,7 @@ void Sock::connect(const char *addr, unsigned short portt)
                            "Sock::connect: connect()");
     }
 
-    /* disable TCP nagle algorithm (for lower latency) */
+    // disable TCP nagle algorithm (for lower latency)
     opts = 1;
     SystemCall(
       setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int)),
@@ -171,7 +170,7 @@ void Sock::rx(void)
 
 /**
  * read - enqueue data to receive from the socket and read if socket ready.
- * @ent: the scatter-gather entry
+ * @ent: the scatter-gather entry.
  */
 void Sock::read(const ioop &op)
 {
@@ -187,7 +186,7 @@ void Sock::read(const ioop &op)
  */
 void Sock::tx(void)
 {
-    /* is anything pending for send? */
+    // is anything pending for send?
     if (wbuf.items() == 0) {
         return;
     }
@@ -197,10 +196,10 @@ void Sock::tx(void)
     auto wptrs = wbuf.peek(n1);
 
     if (wptrs.second == nullptr) {
-        /* no wrapping, normal write */
+        // no wrapping, normal write
         nbytes = ::write(fd_, wptrs.first, n);
     } else {
-        /* need to wrap, so use writev */
+        // need to wrap, so use writev
         iovec iov[2];
         iov[0].iov_base = wptrs.first;
         iov[0].iov_len = n1;
@@ -251,7 +250,7 @@ void Sock::write_commit(const size_t len)
 
 /**
  * __socket_check_connected - check if their is a socket error on the file.
- * @fd: the file descriptor to check for a socket error
+ * @fd: the file descriptor to check for a socket error.
  * @return: throws the error if present.
  */
 static void __socket_check_connected(int fd)

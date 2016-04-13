@@ -16,18 +16,14 @@ class accum
   public:
     using size_type = std::vector<uint64_t>::size_type;
 
-    accum(void)
-      : samples{}
-      , sorted{false}
-    {
-    }
+    accum(void) noexcept : samples{}, sorted{false} {}
 
-    accum(std::size_t reserve)
-      : samples{}
-      , sorted{false}
+    accum(std::size_t reserve) noexcept : samples{}, sorted{false}
     {
         samples.reserve(reserve);
     }
+
+    ~accum(void) noexcept {}
 
     void clear(void);
     void add_sample(uint64_t val);

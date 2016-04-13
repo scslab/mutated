@@ -46,6 +46,7 @@ class Client
     std::vector<Sock *> conns;
 
     void setup_connections(void);
+    void teardown_connections(void);
     Sock *get_connection(void);
     void send_request(void);
     void timer_arm(duration deadline);

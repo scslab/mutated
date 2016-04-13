@@ -207,6 +207,16 @@ void Client::setup_connections(void)
     }
 }
 
+void Client::teardown_connections(void)
+{
+    if (cfg.conn_mode == cfg.PER_REQUEST)
+        return;
+
+    for (auto &sock : conns) {
+        sock->put();
+    }
+}
+
 Sock *Client::get_connection(void)
 {
     Sock *sock;
@@ -297,6 +307,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us,
 
     out_count++;
     if (out_count >= total_samples) {
+	teardown_connections();
         print_summary();
         exit(EXIT_SUCCESS);
     }

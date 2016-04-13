@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include "client.hh"
@@ -15,6 +16,12 @@
 
 using namespace std;
 using namespace std::placeholders;
+
+static int
+epoll_spin(int epfd, struct epoll_event *events, int maxevents, int timeout)
+{
+	return (int) syscall(321, epfd, events, maxevents, timeout);
+}
 
 /* Microseconds in a second. */
 static constexpr double USEC = 1000000;
@@ -131,8 +138,15 @@ void Client::run(void)
     setup_experiment();
 
     while (true) {
-        int nfds = SystemCall(epoll_wait(epollfd, events, MAX_EVENTS, -1),
+        int nfds;
+
+        if (cfg.use_epoll_spin) {
+            nfds = SystemCall(epoll_spin(epollfd, events, MAX_EVENTS, -1),
+                              "Client::run: epoll_spin()");
+        } else {
+            nfds = SystemCall(epoll_wait(epollfd, events, MAX_EVENTS, -1),
                               "Client::run: epoll_wait()");
+        }
 
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];

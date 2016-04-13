@@ -21,6 +21,7 @@ class Config
     uint64_t samples;          /* number of samples to measure */
 
     bool machine_readable; /* generate machine readable output? */
+    bool use_epoll_spin;   /* use the custom epoll_spin() system call */
 
     enum conn_modes {
         PER_REQUEST,

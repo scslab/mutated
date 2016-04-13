@@ -29,6 +29,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "Options:" << endl;
     cerr << "  -h    : help" << endl;
     cerr << "  -r    : print raw samples" << endl;
+    cerr << "  -e    : use Shinjuku's epoll_spin() system call" << endl;
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
     cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;
@@ -59,6 +60,7 @@ Config::Config(int argc, char *argv[])
   , cooldown_seconds{5}
   , samples{0}
   , machine_readable{false}
+  , use_epoll_spin{false}
   , conn_mode{ROUND_ROBIN}
   , conn_cnt{10}
   , service_dist{EXPONENTIAL}
@@ -69,12 +71,15 @@ Config::Config(int argc, char *argv[])
     int ret, c;
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "hrw:s:c:l:m:d:n:")) != -1) {
+    while ((c = getopt(argc, argv, "hrew:s:c:l:m:d:n:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
         case 'r':
             machine_readable = true;
+            break;
+        case 'e':
+            use_epoll_spin = true;
             break;
         case 'w':
             warmup_seconds = atoi(optarg);

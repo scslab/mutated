@@ -28,7 +28,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
          << endl;
     cerr << "Options:" << endl;
     cerr << "  -h    : help" << endl;
-    cerr << "  -r STR: raw machine-readable format" << endl;
+    cerr << "  -r    : print raw samples" << endl;
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
     cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;

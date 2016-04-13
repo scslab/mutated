@@ -321,16 +321,7 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us,
  */
 void Client::print_header(void)
 {
-    // TODO: also support detailed sample information
-    if (cfg.machine_readable) {
-        cout
-          << "label\tservice_us\tarrival_us\trequests_per_sec"
-             "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_"
-             "stddev"
-             "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-             "\twait_stddev\twait_99th\twait_99.9th\twait_max"
-          << endl;
-    } else {
+    if (!cfg.machine_readable) {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
                 "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
              << endl;
@@ -345,8 +336,8 @@ void Client::print_header(void)
 void Client::print_summary(void)
 {
     if (cfg.machine_readable) {
-        printf("%s\t%f\t%f\t", // no newline
-               cfg.label, cfg.service_us, USEC / cfg.req_s);
+        service_samples.print_samples();
+        return;
     }
 
     printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",

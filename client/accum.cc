@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <iostream>
 
 #include "accum.hh"
 
@@ -8,9 +9,18 @@
 // TODO: Sort once?
 // TODO: Histogram rather than all samples?
 
+using namespace std;
+
 void accum::clear(void) { samples.clear(); }
 
 void accum::add_sample(uint64_t val) { samples.push_back(val); }
+
+void accum::print_samples(void)
+{
+    for (auto i : samples) {
+        cout << i << endl;
+    }
+}
 
 double accum::mean(void)
 {

@@ -219,7 +219,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
      */
     pointer queue(size_type &len)
     {
-        if (len > space()) {
+        if (len > space() and space() > 0) {
             len = space();
         }
         auto ptrs = queue_prep(len);

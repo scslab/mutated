@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
@@ -227,6 +228,21 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
+     * Queue_emplace constructs a new item on the end of the queue in-place
+     * through the use of placement-new. This avoids any unnecessary copying or
+     * moving.
+     * @args: arguments to forward to the constructor of the item.
+     */
+    template<class... Args>
+    reference queue_emplace(Args&&... args)
+    {
+        size_type n = 1;
+        pointer p = queue(n);
+        ::new (static_cast<void*>(p)) value_type(std::forward<Args>(args)...);
+        return *p;
+    }
+
+    /**
      * Peek returns a pair of pointers to satisfy the request for a array
      * segment of length len. Since we may need to wrap to return len array
      * items, we return a pair of pointers and set len on return to the size of
@@ -302,6 +318,16 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         auto ptrs = peek(len);
         drop(len);
         return ptrs.first;
+    }
+
+    /**
+     * Dequeue_one dequeues the first item in the queue.
+     * @return: the item at the front of the queue.
+     */
+    reference dequeue_one(void)
+    {
+        size_type n = 1;
+        return *dequeue(n);
     }
 
     iterator begin(void)

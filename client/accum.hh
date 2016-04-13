@@ -11,17 +11,20 @@ class accum
 {
   private:
     std::vector<uint64_t> samples;
+    bool sorted;
 
   public:
     using size_type = std::vector<uint64_t>::size_type;
 
     accum(void)
       : samples{}
+      , sorted{false}
     {
     }
 
     accum(std::size_t reserve)
       : samples{}
+      , sorted{false}
     {
         samples.reserve(reserve);
     }

@@ -5,15 +5,21 @@
 
 #include "accum.hh"
 
-// TODO: Reserve space?
-// TODO: Sort once?
 // TODO: Histogram rather than all samples?
 
 using namespace std;
 
-void accum::clear(void) { samples.clear(); }
+void accum::clear(void)
+{
+    samples.clear();
+    sorted = false;
+}
 
-void accum::add_sample(uint64_t val) { samples.push_back(val); }
+void accum::add_sample(uint64_t val)
+{
+    samples.push_back(val);
+    sorted = false;
+}
 
 void accum::print_samples(void)
 {
@@ -44,25 +50,34 @@ double accum::stddev(void)
         sum += diff * diff;
     }
 
-    return std::sqrt(sum / size());
+    return sqrt(sum / size());
 }
 
 uint64_t accum::percentile(double percent)
 {
-    std::sort(samples.begin(), samples.end());
+    if (not sorted) {
+        sort(samples.begin(), samples.end());
+        sorted = true;
+    }
     return samples[ceil(double(size()) * percent) - 1];
 }
 
 uint64_t accum::min(void)
 {
-    std::sort(samples.begin(), samples.end());
+    if (not sorted) {
+        sort(samples.begin(), samples.end());
+        sorted = true;
+    }
     return samples[0];
 }
 
 uint64_t accum::max(void)
 {
-    std::sort(samples.begin(), samples.end());
+    if (not sorted) {
+        sort(samples.begin(), samples.end());
+        sorted = true;
+    }
     return samples[samples.size() - 1];
 }
 
-std::vector<uint64_t>::size_type accum::size(void) { return samples.size(); }
+vector<uint64_t>::size_type accum::size(void) { return samples.size(); }

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -12,6 +13,7 @@
 #include "util.hh"
 
 using namespace std;
+using namespace std::placeholders;
 
 /**
  * Tracks an outstanding synthetic request.
@@ -40,15 +42,13 @@ struct synreq {
     }
 };
 
-static void __read_completion_handler(Sock *, char *, size_t, char *, size_t,
-                                      void *, int);
-
 /* Constructor */
-synthetic::synthetic(const Config &cfg, mt19937 &rand)
-  : cfg_(cfg)
-  , rand_{rand}
-  , service_dist_exp{1.0 / cfg.service_us}
-  , service_dist_lognorm{log(cfg.service_us) - 2.0, 2.0}
+synthetic::synthetic(const Config &cfg, mt19937 &rand) noexcept
+  : cfg_(cfg),
+    rand_{rand},
+    service_dist_exp{1.0 / cfg.service_us},
+    service_dist_lognorm{log(cfg.service_us) - 2.0, 2.0},
+    cb_{bind(&synthetic::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
 {
 }
 
@@ -65,7 +65,7 @@ uint64_t synthetic::gen_service_time(void)
 }
 
 /* Generate and send a new request */
-void synthetic::send_request(Sock *sock, bool measure, request_cb cb)
+void synthetic::_send_request(bool measure, request_cb cb)
 {
     // create our synreq
     synreq *req = new synreq(measure, cb, gen_service_time());
@@ -73,33 +73,32 @@ void synthetic::send_request(Sock *sock, bool measure, request_cb cb)
 
     // add synreq to write queue
     size_t n = sizeof(req_pkt), n1 = n;
-    auto wptrs = sock->write_prepare(n1);
+    auto wptrs = sock_.write_prepare(n1);
     memcpy(wptrs.first, &req->req, n1);
     if (n != n1) {
         memcpy(wptrs.second, &req->req + n1, n - n1);
     }
-    sock->write_commit(n);
+    sock_.write_commit(n);
 
     // add response to read queue
-    ioop io(sizeof(resp_pkt), req, &__read_completion_handler);
-    sock->read(io);
+    ioop io(sizeof(resp_pkt), req, cb_);
+    sock_.read(io);
 }
 
 /* Handle parsing a response from a previous request */
-static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
-                                      char *seg2, size_t m, void *data,
-                                      int status)
+void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                              char *seg2, size_t m, int status)
 {
     UNUSED(seg1);
     UNUSED(seg2);
 
-    if (n + m != sizeof(resp_pkt)) { // ensure valid packet
-        throw runtime_error(
-          "__read_completion_handler: unexpected packet size");
+    if (&sock_ != s) {
+        throw runtime_error("synth::recv_response: wrong socket in callback");
     } else if (status != 0) { // just delete on error
         delete (synreq *)data;
-        sock->put();
         return;
+    } else if (n + m != sizeof(resp_pkt)) { // ensure valid packet
+        throw runtime_error("synth::recv_response: unexpected packet size");
     }
 
     // parse packet
@@ -108,7 +107,7 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
     auto delta = now - req->start_ts;
     if (delta <= generator::duration(0)) {
         throw runtime_error(
-          "__read_completion_handler: sample arrived before it was sent");
+          "synth::recv_response: sample arrived before it was sent");
     }
 
     // measurement noise can push wait_us into negative values sometimes
@@ -120,8 +119,7 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
     } else {
         wait_us = 0;
     }
-    req->cb(service_us, wait_us, req->measure);
+    req->cb(this, service_us, wait_us, req->measure);
 
     delete req;
-    sock->put(); // indicate end of request
 }

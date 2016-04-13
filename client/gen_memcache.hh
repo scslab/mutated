@@ -27,7 +27,7 @@ class memcache : public generator
     memcache &operator=(memcache &&) = delete;
 
     /* Generate requests */
-    void send_request(Sock *sock, bool should_measure, request_cb cb) override;
+    void send_request(bool measure, request_cb cb) override;
 };
 
 #endif /* MUTATED_GEN_MEMCACHE_HH */

@@ -20,8 +20,7 @@ using namespace std;
 /**
  * Sock - construct a new socket.
  */
-Sock::Sock(void) noexcept : ref_cnt{1},
-                            fd_{-1},
+Sock::Sock(void) noexcept : fd_{-1},
                             port{0},
                             connected{false},
                             rx_rdy{false},
@@ -40,7 +39,7 @@ Sock::~Sock(void) noexcept
     // cancel all pending read requests
     for (auto &rxcb : rxcbs) {
         if (rxcb.cb) {
-            rxcb.cb(this, nullptr, 0, nullptr, 0, rxcb.cb_data, -EIO);
+            rxcb.cb(this, rxcb.cb_data, nullptr, 0, nullptr, 0, -EIO);
         }
     }
 
@@ -63,23 +62,12 @@ Sock::~Sock(void) noexcept
                    sizeof(linger));
         close(fd_);
     }
-}
 
-/**
- * get - increase the reference count.
- */
-void Sock::get(void) noexcept { ref_cnt++; }
-
-/**
- * set - decrease the reference count, will deallocate if hits zero.
- */
-void Sock::put(void)
-{
-    if (--ref_cnt == 0) {
-        delete this;
-    } else if (ref_cnt < 0) {
-        throw std::runtime_error("Sock::put refcnt < 0");
-    }
+    rxcbs.clear();
+    fd_ = -1;
+    connected = false;
+    rx_rdy = false;
+    tx_rdy = false;
 }
 
 /**
@@ -166,7 +154,6 @@ void Sock::rx(void)
     }
     rbuf.queue_commit(nbytes);
 
-    get();
     for (auto &rxcb : rxcbs) {
         if (rbuf.items() < rxcb.len) {
             break;
@@ -174,13 +161,12 @@ void Sock::rx(void)
         if (rxcb.cb) {
             n = n1 = rxcb.len;
             rptrs = rbuf.peek(n1);
-            rxcb.cb(this, rptrs.first, n1, rptrs.second, n - n1, rxcb.cb_data,
+            rxcb.cb(this, rxcb.cb_data, rptrs.first, n1, rptrs.second, n - n1,
                     0);
         }
         rbuf.drop(rxcb.len);
         rxcbs.drop(1);
     }
-    put();
 }
 
 /**
@@ -288,8 +274,6 @@ static void __socket_check_connected(int fd)
  */
 void Sock::run_io(uint32_t events)
 {
-    get();
-
     if (events & EPOLLIN) {
         rx_rdy = true;
         rx();
@@ -303,6 +287,4 @@ void Sock::run_io(uint32_t events)
         tx_rdy = true;
         tx();
     }
-
-    put();
 }

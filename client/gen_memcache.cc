@@ -45,23 +45,23 @@ memcache::memcache(const Config &cfg)
 }
 
 /* Generate and send a new request */
-void memcache::send_request(Sock *sock, bool measure, request_cb cb)
+void memcache::send_request(bool measure, request_cb cb)
 {
     // create our request
     memreq *req = new memreq(measure, cb);
 
     // add req to write queue
     size_t n = strlen(getreq), n1 = n;
-    auto wptrs = sock->write_prepare(n1);
+    auto wptrs = soc.> write_prepare(n1);
     memcpy(wptrs.first, getreq, n1);
     if (n != n1) {
         memcpy(wptrs.second, getreq + n1, n - n1);
     }
-    sock->write_commit(n);
+    sock.write_commit(n);
 
     // add response to read queue
     ioop io(5, req, &__read_completion_handler);
-    sock->read(io);
+    sock.read(io);
 }
 
 /* Handle parsing a memcache response from a previous request */

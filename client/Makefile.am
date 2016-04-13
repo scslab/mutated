@@ -7,7 +7,6 @@ client_SOURCES = \
 	accum.hh accum.cc \
 	client.hh client.cc \
 	generator.hh \
-	gen_memcache.hh gen_memcache.cc \
 	gen_synthetic.hh gen_synthetic.cc \
 	main.cc \
 	opts.hh opts.cc \

@@ -8,7 +8,6 @@
 #include "accum.hh"
 #include "generator.hh"
 #include "opts.hh"
-#include "socket_buf.hh"
 
 /**
  * Mutated load generator.
@@ -26,7 +25,6 @@ class Client
     std::random_device rd;
     std::mt19937 randgen;
     std::uniform_int_distribution<int> conn_dist;
-    std::unique_ptr<generator> gen;
     generator::request_cb gen_cb;
 
     unsigned int epollfd;
@@ -43,11 +41,11 @@ class Client
     time_point measure_start_time;
     std::vector<duration> deadlines;
 
-    std::vector<Sock *> conns;
+    std::vector<generator *> conns;
 
+    generator *new_connection(void);
     void setup_connections(void);
-    void teardown_connections(void);
-    Sock *get_connection(void);
+    generator *get_connection(void);
     void send_request(void);
     void timer_arm(duration deadline);
     void timer_handler(void);
@@ -81,7 +79,7 @@ class Client
     void run(void);
 
     /* Record a latency sample. */
-    void record_sample(uint64_t service_us, uint64_t wait_us,
+    void record_sample(generator *, uint64_t service_us, uint64_t wait_us,
                        bool should_measure);
 };
 

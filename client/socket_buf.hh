@@ -20,7 +20,7 @@ class Sock;
 /* An IO operation */
 struct ioop {
     using ioop_cb =
-      std::function<void(Sock *, char *, size_t, char *, size_t, void *, int)>;
+      std::function<void(Sock *, void *, char *, size_t, char *, size_t, int)>;
 
     size_t len;
     void *cb_data;
@@ -55,7 +55,6 @@ class Sock
     using ioqueue = buffer<ioop, 1024>;
 
   private:
-    int ref_cnt;         /* the reference count */
     int fd_;             /* the file descriptor */
     unsigned short port; /* port connected to */
     bool connected;      /* is the socket connected? */
@@ -81,11 +80,6 @@ class Sock
     Sock(Sock &&) = delete;
     Sock operator=(const Sock &) = delete;
     Sock operator=(Sock &&) = delete;
-
-    /* Take a new reference */
-    void get(void) noexcept;
-    /* Release a reference */
-    void put(void);
 
     /* Access underlying file descriptor */
     int fd(void) const noexcept { return fd_; }

@@ -18,22 +18,25 @@ class synthetic : public generator
     std::mt19937 &rand_;
     std::exponential_distribution<double> service_dist_exp;
     std::lognormal_distribution<double> service_dist_lognorm;
+    ioop::ioop_cb cb_;
 
     uint64_t gen_service_time(void);
+    void recv_response(Sock *sock, void *data, char *seg1, size_t n,
+                       char *seg2, size_t m, int status);
+
+  protected:
+    void _send_request(bool measure, request_cb cb) override;
 
   public:
     /* Constructor */
-    synthetic(const Config &cfg, std::mt19937 &rand);
-    ~synthetic(void) = default;
+    synthetic(const Config &cfg, std::mt19937 &rand) noexcept;
+    ~synthetic(void) noexcept = default;
 
     /* No copy or move */
     synthetic(const synthetic &) = delete;
     synthetic(synthetic &&) = delete;
     synthetic &operator=(const synthetic &) = delete;
     synthetic &operator=(synthetic &&) = delete;
-
-    /* Generate requests */
-    void send_request(Sock *sock, bool should_measure, request_cb cb) override;
 };
 
 #endif /* MUTATED_GEN_SYNTHETIC_HH */

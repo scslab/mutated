@@ -9,7 +9,7 @@
 
 #include "client.hh"
 #include "generator.hh"
-#include "gen_memcache.hh"
+// #include "gen_memcache.hh"
 #include "gen_synthetic.hh"
 #include "socket_buf.hh"
 #include "util.hh"
@@ -27,22 +27,6 @@ static int epoll_spin(int epfd, struct epoll_event *events, int maxevents,
 static constexpr double USEC = 1000000;
 static constexpr double NSEC = 1000000000;
 
-/* Return the right protocol generator. */
-static generator *choose_generator(const Config &cfg, mt19937 &rand)
-{
-    switch (cfg.protocol) {
-    case Config::SYNTHETIC:
-        return new synthetic(cfg, rand);
-        break;
-    case Config::MEMCACHE:
-        return new memcache(cfg);
-        break;
-    default:
-        throw runtime_error("Unknown protocol");
-        break;
-    }
-}
-
 /**
  * Create a new client.
  */
@@ -51,8 +35,7 @@ Client::Client(int argc, char *argv[])
   , rd{}
   , randgen{rd()}
   , conn_dist{0, (int)cfg.conn_cnt - 1}
-  , gen{choose_generator(cfg, randgen)}
-  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3)}
+  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
@@ -69,7 +52,7 @@ Client::Client(int argc, char *argv[])
   , exp_start_time{}
   , measure_start_time{}
   , deadlines{}
-  , conns{cfg.conn_cnt}
+  , conns{}
 {
     epoll_watch(timerfd, NULL, EPOLLIN);
     print_header();
@@ -155,8 +138,8 @@ void Client::run(void)
             if (ev.data.ptr == nullptr) {
                 timer_handler();
             } else {
-                Sock *s = (Sock *)ev.data.ptr;
-                s->run_io(ev.events);
+                generator *g = (generator *)ev.data.ptr;
+                g->run_io(ev.events);
             }
         }
     }
@@ -209,50 +192,56 @@ void Client::setup_deadlines(void)
     total_samples = pos;
 }
 
+/**
+ * Create a new socket and associated packet generator.
+ */
+generator *Client::new_connection(void)
+{
+    generator *gen;
+    switch (cfg.protocol) {
+    case Config::SYNTHETIC:
+        gen = new synthetic(cfg, randgen);
+        break;
+    // case Config::MEMCACHE:
+    //     return new memcache(cfg);
+    //     break;
+    default:
+        throw runtime_error("Unknown protocol");
+        break;
+    }
+
+    gen->connect(cfg.addr, cfg.port);
+    epoll_watch(gen->fd(), gen, EPOLLIN | EPOLLOUT);
+    return gen;
+}
+
 void Client::setup_connections(void)
 {
     if (cfg.conn_mode == cfg.PER_REQUEST) {
         return;
     }
 
-    for (auto &sock : conns) {
-        sock = new Sock();
-        sock->connect(cfg.addr, cfg.port);
-        epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
+    for (size_t i = 0; i < cfg.conn_cnt; i++) {
+        conns.push_back(new_connection());
     }
 }
 
-void Client::teardown_connections(void)
+generator *Client::get_connection(void)
 {
-    if (cfg.conn_mode == cfg.PER_REQUEST)
-        return;
-
-    for (auto &sock : conns) {
-        sock->put();
-    }
-}
-
-Sock *Client::get_connection(void)
-{
-    Sock *sock;
-
     if (cfg.conn_mode == cfg.PER_REQUEST) {
         // create a new connection per request
-        sock = new Sock();
-        sock->connect(cfg.addr, cfg.port);
-        epoll_watch(sock->fd(), sock, EPOLLIN | EPOLLOUT);
-        return sock;
+        return new_connection();
     } else if (cfg.conn_mode == cfg.ROUND_ROBIN) {
         // round-robin through a pool of established connections
         static int idx = 0;
-        sock = conns[idx++ % conns.size()];
-        sock->get(); // indicate start of request
-        return sock;
+        generator *gen = conns[idx++ % conns.size()];
+        gen->get();
+        return gen;
     } else {
         // randomly choose a connection from the pool
-        sock = conns[conn_dist(randgen)];
-        sock->get(); // indicate start of request
-        return sock;
+        generator *gen = conns[conn_dist(randgen)];
+        gen->get();
+        return gen;
     }
 }
 
@@ -288,15 +277,16 @@ void Client::send_request(void)
       sent_count >= pre_samples and sent_count < pre_samples + measure_samples;
 
     // get an available connection
-    Sock *sock = get_connection();
+    generator *gen = get_connection();
 
     // sock is reference counted (get/put) and we'll deallocate it in the read
     // callback established by generator.
-    gen->send_request(sock, measure, gen_cb);
+    gen->send_request(measure, gen_cb);
 }
 
 /* Record a latency sample */
-void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool measure)
+void Client::record_sample(generator *conn, uint64_t service_us,
+                           uint64_t wait_us, bool measure)
 {
     if (measure) {
         measure_count++;
@@ -315,9 +305,10 @@ void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool measure)
         }
     }
 
+    conn->put(); // request finished
+
     rcvd_count++;
     if (rcvd_count >= total_samples) {
-        teardown_connections();
         print_summary();
         exit(EXIT_SUCCESS);
     }
@@ -332,8 +323,7 @@ void Client::print_header(void)
 {
     if (!cfg.machine_readable) {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-             << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
     }
 }
 

@@ -302,6 +302,11 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
+     * Clear removes all items from the buffer.
+     */
+    void clear(void) { drop(items()); }
+
+    /**
      * Dequeue returns a pointer to a contiguous array as close to the
      * requested length as possible, and, frees that space for future queue
      * operations.

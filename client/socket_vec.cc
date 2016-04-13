@@ -1,10 +1,6 @@
-/**
- * socket.c - async socket I/O support
- */
 #include <algorithm>
 #include <system_error>
 
-#include <alloca.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "socket.hh"
+#include "socket_vec.hh"
 #include "util.hh"
 
 using namespace std;
@@ -22,22 +18,21 @@ using namespace std;
 /**
  * Sock - construct a new socket.
  */
-Sock::Sock(void)
-  : ref_cnt{1}
-  , fd_{-1}
-  , port{0}
-  , connected{false}
-  , rx_rdy{false}
-  , tx_rdy{false}
-  , rx_nrents{0}
-  , tx_nrents{0}
+Sock::Sock(void) noexcept : ref_cnt{1},
+                            fd_{-1},
+                            port{0},
+                            connected{false},
+                            rx_rdy{false},
+                            tx_rdy{false},
+                            rx_nrents{0},
+                            tx_nrents{0}
 {
 }
 
 /**
  * ~Sock - deconstruct a socket.
  */
-Sock::~Sock(void)
+Sock::~Sock(void) noexcept
 {
     for (size_t i = 0; i < rx_nrents; i++) {
         if (rx_ents[i].complete) {
@@ -64,10 +59,8 @@ Sock::~Sock(void)
         linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-        SystemCall(setsockopt(fd_, SOL_SOCKET, SO_LINGER, (char *)&linger,
-                              sizeof(linger)),
-                   "Sock::~Sock: SO_LINGER failed");
-
+        setsockopt(fd_, SOL_SOCKET, SO_LINGER, (char *)&linger,
+                   sizeof(linger));
         close(fd_);
     }
 }
@@ -75,7 +68,7 @@ Sock::~Sock(void)
 /**
  * get - increase the reference count.
  */
-void Sock::get(void) { ref_cnt++; }
+void Sock::get(void) noexcept { ref_cnt++; }
 
 /**
  * set - decrease the reference count, will deallocate if hits zero.

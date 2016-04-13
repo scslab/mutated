@@ -10,7 +10,7 @@
 #include "generator.hh"
 #include "gen_memcache.hh"
 #include "gen_synthetic.hh"
-#include "socket.hh"
+#include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
@@ -197,8 +197,9 @@ void Client::setup_deadlines(void)
 
 void Client::setup_connections(void)
 {
-    if (cfg.conn_mode == cfg.PER_REQUEST)
+    if (cfg.conn_mode == cfg.PER_REQUEST) {
         return;
+    }
 
     for (auto &sock : conns) {
         sock = new Sock();
@@ -327,10 +328,12 @@ void Client::print_header(void)
              "\tideal_requests_per_sec\tservice_min\tservice_mean\tservice_"
              "stddev"
              "\tservice_99th\tservice_99.9th\tservice_max\twait_min\twait_mean"
-             "\twait_stddev\twait_99th\twait_99.9th\twait_max" << endl;
+             "\twait_stddev\twait_99th\twait_99.9th\twait_max"
+          << endl;
     } else {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+             << endl;
     }
 }
 

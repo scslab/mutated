@@ -1,10 +1,6 @@
-/*
- * gen_synthetic -- creates read and write requests on the specified socket
- * conforming to the synthetic protocol.
- */
-
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 #include <errno.h>
@@ -12,21 +8,19 @@
 
 #include "gen_synthetic.hh"
 #include "protocol.hh"
-#include "socket.hh"
+#include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
 
 /**
- * Tracks an outstanding request to the service we are generating load against.
+ * Tracks an outstanding synthetic request.
  */
-class synreq
-{
-  public:
+struct synreq {
     using request_cb = generator::request_cb;
     using time_point = generator::time_point;
 
-    bool should_measure;
+    bool measure;
     request_cb cb;
     time_point start_ts;
     uint64_t service_us;
@@ -34,7 +28,7 @@ class synreq
     resp_pkt resp;
 
     synreq(bool m, request_cb c, uint64_t service)
-      : should_measure{m}
+      : measure{m}
       , cb{c}
       , start_ts{generator::clock::now()}
       , service_us{service}
@@ -46,10 +40,11 @@ class synreq
     }
 };
 
-static void __read_completion_handler(Sock *s, void *data, int status);
+static void __read_completion_handler(Sock *, char *, size_t, char *, size_t,
+                                      void *, int);
 
 /* Constructor */
-synthetic::synthetic(const Config &cfg, std::mt19937 &rand)
+synthetic::synthetic(const Config &cfg, mt19937 &rand)
   : cfg_(cfg)
   , rand_{rand}
   , service_dist_exp{1.0 / cfg.service_us}
@@ -70,50 +65,62 @@ uint64_t synthetic::gen_service_time(void)
 }
 
 /* Generate and send a new request */
-void synthetic::send_request(Sock *sock, bool should_measure, request_cb cb)
+void synthetic::send_request(Sock *sock, bool measure, request_cb cb)
 {
     // create our synreq
-    synreq *req = new synreq(should_measure, cb, gen_service_time());
-    req->req.tag = (uint64_t)req;
+    synreq *req = new synreq(measure, cb, gen_service_time());
+    req->req.tag = (uint64_t)req; // store pointer to ourselves in tag
 
     // add synreq to write queue
-    vio ent((char *)&req->req, sizeof(req_pkt));
-    sock->write(ent);
+    size_t n = sizeof(req_pkt), n1 = n;
+    auto wptrs = sock->write_prepare(n1);
+    memcpy(wptrs.first, &req->req, n1);
+    if (n != n1) {
+        memcpy(wptrs.second, &req->req + n1, n - n1);
+    }
+    sock->write_commit(n);
 
     // add response to read queue
-    ent.buf = (char *)&req->resp;
-    ent.len = sizeof(resp_pkt);
-    ent.cb_data = ent.buf;
-    ent.complete = &__read_completion_handler;
-    sock->read(ent);
+    ioop io(sizeof(resp_pkt), req, &__read_completion_handler);
+    sock->read(io);
 }
 
 /* Handle parsing a response from a previous request */
-static void __read_completion_handler(Sock *sock, void *data, int status)
+static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
+                                      char *seg2, size_t m, void *data,
+                                      int status)
 {
-    resp_pkt *resp = (resp_pkt *)data;
-    synreq *req = (synreq *)resp->tag;
-    uint64_t wait_us;
+    UNUSED(seg1);
+    UNUSED(seg2);
 
-    if (status == 0) {
-        auto now = generator::clock::now();
-        auto delta = now - req->start_ts;
-        if (delta <= generator::duration(0)) {
-            throw std::runtime_error(
-              "__read_completion_handler: sample arrived before it was sent");
-        }
-
-        // measurement noise can push wait_us into negative values sometimes
-        uint64_t service_us =
-          chrono::duration_cast<generator::duration>(delta).count();
-        if (service_us > req->service_us) {
-            wait_us = service_us - req->service_us;
-        } else {
-            wait_us = 0;
-        }
-
-        req->cb(service_us, wait_us, req->should_measure);
+    if (n + m != sizeof(resp_pkt)) { // ensure valid packet
+        throw runtime_error(
+          "__read_completion_handler: unexpected packet size");
+    } else if (status != 0) { // just delete on error
+        delete (synreq *)data;
+        sock->put();
+        return;
     }
+
+    // parse packet
+    synreq *req = (synreq *)data;
+    auto now = generator::clock::now();
+    auto delta = now - req->start_ts;
+    if (delta <= generator::duration(0)) {
+        throw runtime_error(
+          "__read_completion_handler: sample arrived before it was sent");
+    }
+
+    // measurement noise can push wait_us into negative values sometimes
+    uint64_t wait_us;
+    uint64_t service_us =
+      chrono::duration_cast<generator::duration>(delta).count();
+    if (service_us > req->service_us) {
+        wait_us = service_us - req->service_us;
+    } else {
+        wait_us = 0;
+    }
+    req->cb(service_us, wait_us, req->measure);
 
     delete req;
     sock->put(); // indicate end of request

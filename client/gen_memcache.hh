@@ -5,7 +5,7 @@
 
 #include "generator.hh"
 #include "opts.hh"
-#include "socket.hh"
+#include "socket_buf.hh"
 
 /**
  * Generator supporting the memcache binary protocol.

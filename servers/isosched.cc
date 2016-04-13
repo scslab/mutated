@@ -122,7 +122,7 @@ static void *worker_thread(void *arg)
 
         pthread_mutex_lock(&lock);
         if (cont) {
-          reqs.push_front(fd);
+            reqs.push_front(fd);
         }
     }
 

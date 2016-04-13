@@ -8,7 +8,7 @@
 #include "accum.hh"
 #include "generator.hh"
 #include "opts.hh"
-#include "socket.hh"
+#include "socket_buf.hh"
 
 /**
  * Mutated load generator.

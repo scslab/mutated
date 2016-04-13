@@ -2,7 +2,8 @@
 #define MUTATED_SOCKET_HH
 
 /**
- * socket.h - async socket I/O support
+ * socket_vec.hh - async socket I/O support. Relies on the user of the socket
+ * to provide appropriately sized buffers for all read and write operations.
  */
 
 #include <cstdint>
@@ -76,10 +77,10 @@ class Sock
 
   public:
     /* Constructor */
-    Sock(void);
+    Sock(void) noexcept;
 
     /* Deconstructor */
-    ~Sock(void);
+    ~Sock(void) noexcept;
 
     /* Disable copy and move */
     Sock(const Sock &) = delete;
@@ -100,9 +101,8 @@ class Sock
     /* Handle epoll events against this socket */
     void run_io(uint32_t events);
 
-  public:
-    void get(void); /* Take a new reference */
-    void put(void); /* Release a reference */
+    void get(void) noexcept; /* Take a new reference */
+    void put(void);          /* Release a reference */
 };
 
 #endif /* MUTATED_SOCKET_HH */

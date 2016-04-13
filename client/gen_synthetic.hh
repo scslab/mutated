@@ -21,24 +21,15 @@ struct synreq {
     request_cb cb;
     time_point start_ts;
     uint64_t service_us;
-    req_pkt req;
-    resp_pkt resp;
 
-    synreq(void)
-      : synreq(false, nullptr, 0)
-    {
-    }
+    synreq(void) noexcept : synreq(false, nullptr, 0) {}
 
-    synreq(bool m, request_cb c, uint64_t service)
-      : measure{m}
-      , cb{c}
-      , start_ts{generator::clock::now()}
-      , service_us{service}
-      , req{}
-      , resp{}
+    synreq(bool m, request_cb c, uint64_t service) noexcept
+      : measure{m},
+        cb{c},
+        start_ts{generator::clock::now()},
+        service_us{service}
     {
-        req.nr = 1;
-        req.delays[0] = service_us;
     }
 };
 

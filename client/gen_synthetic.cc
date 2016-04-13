@@ -42,14 +42,22 @@ void synthetic::_send_request(bool measure, request_cb cb)
 {
     // create our synreq
     synreq &req = requests.queue_emplace(measure, cb, gen_service_time());
-    req.req.tag = (uint64_t)&req; // store pointer to ourselves in tag
-
-    // add synreq to write queue
     size_t n = sizeof(req_pkt), n1 = n;
     auto wptrs = sock_.write_prepare(n1);
-    memcpy(wptrs.first, &req.req, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, &req.req + n1, n - n1);
+    if (n1 == n) {
+        // contiguous
+        req_pkt *pkt = (req_pkt *)wptrs.first;
+        pkt->tag = (uint64_t)&req;
+        pkt->nr = 1;
+        pkt->delays[0] = req.service_us;
+    } else {
+        // fragmented
+        req_pkt pkt;
+        pkt.tag = (uint64_t)&req;
+        pkt.nr = 1;
+        pkt.delays[0] = req.service_us;
+        memcpy(wptrs.first, &pkt, n1);
+        memcpy(wptrs.second, &pkt + n1, n - n1);
     }
     sock_.write_commit(n);
 

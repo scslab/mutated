@@ -1,4 +1,5 @@
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 
@@ -10,78 +11,61 @@
 #include "util.hh"
 
 using namespace std;
+using namespace std::placeholders;
 
-static constexpr size_t MAX_MEM_RESP = 100;
-
-/**
- * Tracks an outstanding memcache request.
- */
-struct memreq {
-    using request_cb = generator::request_cb;
-    using time_point = generator::time_point;
-
-    bool measure;
-    request_cb cb;
-    time_point start_ts;
-    char resp[MAX_MEM_RESP];
-
-    memreq(bool m, request_cb c)
-      : measure{m}
-      , cb{c}
-      , start_ts{generator::clock::now()}
-    {
-    }
-};
-
-static void __read_completion_handler(Sock *, char *, size_t, char *, size_t,
-                                      void *, int);
-
+/* GET request. */
 static const char *getreq = "get a\r\n";
 
 /**
- * Constructor.
+ * Construct.
  */
-memcache::memcache(const Config &cfg) noexcept : cfg_(cfg) {}
+memcache::memcache(const Config &cfg) noexcept
+    : cfg_{cfg}
+    , cb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
+    , requests_{}
+{
+}
 
 /**
  * Generate and send a new request.
  */
-void memcache::send_request(bool measure, request_cb cb)
+void memcache::_send_request(bool measure, request_cb cb)
 {
     // create our request
     memreq *req = new memreq(measure, cb);
 
     // add req to write queue
     size_t n = strlen(getreq), n1 = n;
-    auto wptrs = soc.> write_prepare(n1);
+    auto wptrs = sock_.write_prepare(n1);
     memcpy(wptrs.first, getreq, n1);
     if (n != n1) {
         memcpy(wptrs.second, getreq + n1, n - n1);
     }
-    sock.write_commit(n);
+    sock_.write_commit(n);
 
     // add response to read queue
-    ioop io(5, req, &__read_completion_handler);
-    sock.read(io);
+    ioop io(5, req, cb_);
+    sock_.read(io);
 }
 
 /**
- * Handle parsing a memcache response from a previous request.
+ * Handle parsing a response from a previous request.
  */
-static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
-                                      char *seg2, size_t m, void *data,
-                                      int status)
+void memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                             char *seg2, size_t m, int status)
 {
     UNUSED(seg1);
     UNUSED(seg2);
 
-    if (n + m != 5) { // ensure valid packet
-        throw runtime_error(
-          "__read_completion_handler: unexpected packet size");
-    } else if (status != 0) { // just delete on error
+    if (&sock_ != s) { // ensure right callback
+        throw runtime_error("synth::recv_response: wrong socket in callback");
+    }
+
+    if (status != 0) { // just delete on error
         delete reinterpret_cast<memreq *>(data);
-        sock->put();
         return;
+    } else if (n + m != 5) { // ensure valid packet
+        throw runtime_error("memcache::recv_response: unexpected packet size");
     }
 
     // parse packet
@@ -96,8 +80,6 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
       chrono::duration_cast<generator::duration>(delta).count();
 
     // record measurement
-    req->cb(service_us, 0, req->measure);
-
+    req->cb(this, service_us, 0, req->measure);
     delete req;
-    sock->put(); // indicate end of request
 }

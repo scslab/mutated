@@ -9,7 +9,7 @@
 
 #include "client.hh"
 #include "generator.hh"
-// #include "gen_memcache.hh"
+#include "gen_memcache.hh"
 #include "gen_synthetic.hh"
 #include "socket_buf.hh"
 #include "util.hh"
@@ -205,9 +205,9 @@ generator *Client::new_connection(void)
     case Config::SYNTHETIC:
         gen = new synthetic(cfg, randgen);
         break;
-    // case Config::MEMCACHE:
-    //     return new memcache(cfg);
-    //     break;
+    case Config::MEMCACHE:
+        gen = new memcache(cfg);
+        break;
     default:
         throw runtime_error("Unknown protocol");
         break;

@@ -8,6 +8,7 @@ client_SOURCES = \
 	client.hh client.cc \
 	generator.hh \
 	gen_synthetic.hh gen_synthetic.cc \
+	gen_memcache.hh gen_memcache.cc \
 	main.cc \
 	opts.hh opts.cc \
 	socket_buf.hh socket_buf.cc \

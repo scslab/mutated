@@ -1,10 +1,34 @@
 #include <iostream>
 #include <memory>
+#include <random>
 
 #include "buffer.hh"
 #include "util.hh"
 
 using namespace std;
+
+void testRandomShare1(mt19937 & rand)
+{
+    exponential_distribution<double> ed1;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+}
+
+void testRandomShare2(mt19937 & rand)
+{
+    exponential_distribution<double> ed1;
+    exponential_distribution<double> ed2;
+    cout << ed1(rand) << endl;
+    cout << ed2(rand) << endl;
+    cout << ed2(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed1(rand) << endl;
+    cout << ed2(rand) << endl;
+}
 
 class AllocLog
 {
@@ -141,7 +165,7 @@ int main(int argc, char *argv[])
     // test Buffer
     cout << "# buffer - init" << endl; // cons[5]
     size_t n = 1;
-    buffer<AllocLog, 5> queue;
+    buffer<AllocLog, 6> queue;
     cout << endl;
 
     cout << "# buffer - queue" << endl; // copy =
@@ -171,6 +195,17 @@ int main(int argc, char *argv[])
 
     cout << "# buffer - queue_emplace - args" << endl; // cons (id)
     queue.queue_emplace(11);
+    cout << endl;
+
+    mt19937 rand1;
+    mt19937 rand2 = rand1;
+
+    cout << "# rand 1" << endl;
+    testRandomShare1(rand1);
+    cout << endl;
+
+    cout << "# rand 2" << endl;
+    testRandomShare2(rand2);
     cout << endl;
 
     cout << "# done" << endl; // decons*

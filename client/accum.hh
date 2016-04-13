@@ -20,6 +20,12 @@ class accum
     {
     }
 
+    accum(std::size_t reserve)
+      : samples{}
+    {
+        samples.reserve(reserve);
+    }
+
     void clear(void);
     void add_sample(uint64_t val);
     void print_samples(void);

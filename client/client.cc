@@ -56,11 +56,11 @@ Client::Client(int argc, char *argv[])
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
-  , service_samples{}
-  , wait_samples{}
+  , service_samples{cfg.samples}
+  , wait_samples{cfg.samples}
   , throughput{0}
-  , in_count{0}
-  , out_count{0}
+  , sent_count{0}
+  , rcvd_count{0}
   , measure_count{0}
   , pre_samples{0}
   , post_samples{0}
@@ -164,7 +164,7 @@ void Client::run(void)
 
 void Client::setup_experiment(void)
 {
-    in_count = out_count = measure_count = 0;
+    sent_count = rcvd_count = measure_count = 0;
     setup_connections();
     setup_deadlines();
     exp_start_time = clock::now();
@@ -264,14 +264,14 @@ void Client::timer_handler(void)
 
     duration sleep_duration;
     while (true) {
-        sleep_duration = deadlines[in_count] - now_relative;
+        sleep_duration = deadlines[sent_count] - now_relative;
         if (sleep_duration > duration(0)) {
             timer_arm(sleep_duration);
             return;
         }
         send_request();
-        in_count++;
-        if (in_count >= total_samples) {
+        sent_count++;
+        if (sent_count >= total_samples) {
             return;
         }
     }
@@ -279,50 +279,44 @@ void Client::timer_handler(void)
 
 void Client::send_request(void)
 {
-    if (in_count == pre_samples) {
+    if (sent_count == pre_samples) {
         measure_start_time = clock::now();
     }
 
     // in measure phase? (not warm up or down)
-    bool should_measure =
-      in_count >= pre_samples and in_count < pre_samples + measure_samples;
+    bool measure =
+      sent_count >= pre_samples and sent_count < pre_samples + measure_samples;
 
     // get an available connection
     Sock *sock = get_connection();
 
     // sock is reference counted (get/put) and we'll deallocate it in the read
     // callback established by generator.
-    gen->send_request(sock, should_measure, gen_cb);
+    gen->send_request(sock, measure, gen_cb);
 }
 
 /* Record a latency sample */
-void Client::record_sample(uint64_t service_us, uint64_t wait_us,
-                           bool should_measure)
+void Client::record_sample(uint64_t service_us, uint64_t wait_us, bool measure)
 {
-    if (should_measure) {
+    if (measure) {
         measure_count++;
         service_samples.add_sample(service_us);
         wait_samples.add_sample(wait_us);
-    }
 
-    if (measure_count == measure_samples) {
-        time_point delta;
-
-        measure_count++;
-
-        time_point now = clock::now();
-        auto exp_length = now - measure_start_time;
-        if (exp_length < clock::duration(0)) {
-            throw runtime_error("experiment finished before it started");
+        // final measurement app-packet - record experiment time
+        if (measure_count == measure_samples) {
+            auto exp_length = clock::now() - measure_start_time;
+            if (exp_length < clock::duration(0)) {
+                throw runtime_error("experiment finished before it started");
+            }
+            double delta_ns = chrono::duration_cast<duration>(exp_length).count();
+            throughput = (double)cfg.samples / (delta_ns / NSEC);
         }
-
-        double delta_ns = chrono::duration_cast<duration>(exp_length).count();
-        throughput = (double)cfg.samples / (delta_ns / NSEC);
     }
 
-    out_count++;
-    if (out_count >= total_samples) {
-	teardown_connections();
+    rcvd_count++;
+    if (rcvd_count >= total_samples) {
+        teardown_connections();
         print_summary();
         exit(EXIT_SUCCESS);
     }

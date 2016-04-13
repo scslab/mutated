@@ -36,7 +36,7 @@ class Client
     accum wait_samples;
     double throughput;
 
-    uint64_t in_count, out_count, measure_count;
+    uint64_t sent_count, rcvd_count, measure_count;
     uint64_t pre_samples, post_samples, measure_samples, total_samples;
 
     time_point exp_start_time;

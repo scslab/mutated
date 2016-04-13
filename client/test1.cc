@@ -42,7 +42,7 @@ class AllocLog
         cout << "cons (default)" << endl;
     }
 
-    AllocLog(int id_)
+    explicit AllocLog(int id_)
       : id{id_}
     {
         cout << "cons (id)" << endl;

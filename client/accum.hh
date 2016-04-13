@@ -18,7 +18,7 @@ class accum
 
     accum(void) noexcept : samples{}, sorted{false} {}
 
-    accum(std::size_t reserve) noexcept : samples{}, sorted{false}
+    explicit accum(std::size_t reserve) noexcept : samples{}, sorted{false}
     {
         samples.reserve(reserve);
     }

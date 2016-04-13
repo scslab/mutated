@@ -16,7 +16,7 @@ class memcache : public generator
     const Config &cfg_;
 
   public:
-    memcache(const Config &cfg) noexcept;
+    explicit memcache(const Config &cfg) noexcept;
     ~memcache(void) noexcept {}
 
     /* No copy or move */

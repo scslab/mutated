@@ -79,13 +79,13 @@ static void __read_completion_handler(Sock *sock, char *seg1, size_t n,
         throw runtime_error(
           "__read_completion_handler: unexpected packet size");
     } else if (status != 0) { // just delete on error
-        delete (memreq *)data;
+        delete reinterpret_cast<memreq *>(data);
         sock->put();
         return;
     }
 
     // parse packet
-    memreq *req = (memreq *)data;
+    memreq *req = reinterpret_cast<memreq *>(data);
     auto now = generator::clock::now();
     auto delta = now - req->start_ts;
     if (delta <= generator::duration(0)) {

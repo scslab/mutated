@@ -125,7 +125,8 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
-    ret = sscanf(argv[optind + 0], "%[^:]:%hu", addr, &port);
+    // NOTE: keep 256 in sync with addr buffer size.
+    ret = sscanf(argv[optind + 0], "%256[^:]:%20hu", addr, &port);
     if (ret != 2) {
         __printUsage(argv[0]);
     }
@@ -138,12 +139,12 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
-    ret = sscanf(argv[optind + 2], "%lf", &service_us);
+    ret = sscanf(argv[optind + 2], "%20lf", &service_us);
     if (ret != 1) {
         __printUsage(argv[0]);
     }
 
-    ret = sscanf(argv[optind + 3], "%lf", &req_s);
+    ret = sscanf(argv[optind + 3], "%20lf", &req_s);
     if (ret != 1) {
         __printUsage(argv[0]);
     }

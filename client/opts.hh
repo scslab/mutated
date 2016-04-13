@@ -9,7 +9,7 @@
 class Config
 {
   public:
-    char addr[128];    /* the server address */
+    char addr[256];    /* the server address */
     uint16_t port;     /* the server port */
     const char *label; /* label describing server (-m relevant only) */
 

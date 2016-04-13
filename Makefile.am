@@ -20,7 +20,7 @@ cppcheck:
 		--enable=performance \
 		--enable=portability \
 		--enable=style \
-		. 2> cppcheck.err 1>/dev/null
+		client libserver servers 2> cppcheck.err 1>/dev/null
 	@echo "Finished! (check cppcheck.err)..."
 	@echo ""
 	@head cppcheck.err

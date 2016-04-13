@@ -141,7 +141,7 @@ void Client::run(void)
             if (ev.data.ptr == nullptr) {
                 timer_handler();
             } else {
-                generator *g = (generator *)ev.data.ptr;
+                generator *g = reinterpret_cast<generator *>(ev.data.ptr);
                 g->run_io(ev.events);
             }
         }

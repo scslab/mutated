@@ -6,6 +6,9 @@
  * buffers internally for memory management of the rx and tx queues.
  */
 
+// XXX: If we allocate a Socket on the stack it segfaults due to the buffer
+// sizes.
+
 #include <cstdint>
 #include <cstring>
 #include <functional>

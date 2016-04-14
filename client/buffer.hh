@@ -365,8 +365,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
 };
 
 /**
- * A character buffer is a 10MB buffer storing char's.
+ * A character buffer is a 20MB buffer storing char's.
  */
-using charbuf = buffer<char, 10 * 1024 * 1024>;
+using charbuf = buffer<char, 20 * 1024 * 1024>;
 
 #endif /* MUTATED_BUFFER_HH */

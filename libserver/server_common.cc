@@ -10,20 +10,12 @@
 #include <sys/types.h>
 
 #include "debug.hh"
+#include "linux_compat.hh"
 #include "protocol.hh"
 #include "server_common.hh"
 #include "workload.hh"
 
 static int get_num_cpus(void) { return sysconf(_SC_NPROCESSORS_CONF); }
-
-int set_affinity(int core)
-{
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(core, &cpuset);
-
-    return pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-}
 
 /**
  * Spawns N pthreads, where N is the number of CPU cores available

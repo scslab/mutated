@@ -5,6 +5,7 @@
 #include <ctime>
 
 #include "debug.hh"
+#include "linux_compat.hh"
 #include "time.hh"
 #include "workload.hh"
 

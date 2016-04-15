@@ -5,9 +5,9 @@
 #include <string>
 
 #include <arpa/inet.h>
-#include <sys/epoll.h>
 #include <unistd.h>
 
+#include "linux_compat.hh"
 #include "memcache.hh"
 #include "memcacheload.hh"
 #include "util.hh"
@@ -193,7 +193,7 @@ void MemcacheLoad::run(void)
 const char* MemcacheLoad::next_key(uint64_t seqid)
 {
     static char key[KEYSIZE];
-    snprintf(key, KEYSIZE, "key-%025ld", seqid);
+    snprintf(key, KEYSIZE, "key-%025lu", seqid);
     return key;
 }
 

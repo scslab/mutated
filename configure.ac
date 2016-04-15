@@ -33,6 +33,9 @@ AX_CXX_COMPILE_STDCXX_14([noext])
 AM_PROG_AR
 LT_INIT
 
+# Check host.
+AC_CANONICAL_HOST
+
 # Checks for header files.
 AC_CHECK_HEADERS([event2/listener.h])
 
@@ -50,7 +53,24 @@ AC_CONFIG_FILES([
   servers/Makefile
 ])
 
-# Configure sub-packages
-AC_CONFIG_SUBDIRS([libeventm])
+# Only compile libeventm on linux by default.
+AS_IF([test "x$host_os" = "xlinux-gnu"], [
+    libeventm_default=yes
+],[
+    libeventm_default=no
+])
+AC_ARG_ENABLE([libeventm],
+              [AS_HELP_STRING([--enable-libeventm],
+                              [Enable compiling libeventm server])],
+              [],
+              [enable_libeventm=$libeventm_default])
+# Pass libeventm conditional down to automake.
+AM_CONDITIONAL([LIBEVENTM_OPT], [test "x$enable_libeventm" = "xyes"])
 
+# Configure libeventm autotools if building.
+AS_IF([test "x$enable_libeventm" = "xyes"], [
+    AC_CONFIG_SUBDIRS([libeventm])
+])
+
+# Produce our configure script.
 AC_OUTPUT

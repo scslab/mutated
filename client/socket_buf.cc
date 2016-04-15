@@ -7,11 +7,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/tcp.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
+#include "linux_compat.hh"
 #include "socket_buf.hh"
 #include "util.hh"
 

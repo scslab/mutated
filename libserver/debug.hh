@@ -1,5 +1,5 @@
-#ifndef COMMON_HH
-#define COMMON_HH
+#ifndef LIBSERVER_DEBUG_HH
+#define LIBSERVER_DEBUG_HH
 
 /**
  * common.h - general utitilies
@@ -19,4 +19,4 @@ void panic(const char *, ...);
 #define NORETURN
 #endif
 
-#endif /* COMMON_HH */
+#endif /* LIBSERVER_DEBUG_HH */

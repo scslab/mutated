@@ -5,7 +5,6 @@
 #include <stdexcept>
 
 #include <errno.h>
-#include <sys/epoll.h>
 
 #include "gen_synthetic.hh"
 #include "protocol.hh"

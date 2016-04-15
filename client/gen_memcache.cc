@@ -4,7 +4,6 @@
 #include <stdexcept>
 
 #include <errno.h>
-#include <sys/epoll.h>
 
 #include "gen_memcache.hh"
 #include "socket_buf.hh"
@@ -24,6 +23,7 @@ memcache::memcache(const Config &cfg) noexcept
     , cb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
     , requests_{}
 {
+    UNUSED(cfg_);
 }
 
 /**

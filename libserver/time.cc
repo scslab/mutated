@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "linux_compat.hh"
 #include "time.hh"
 
 /**

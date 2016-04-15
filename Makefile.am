@@ -1,6 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = libeventm libserver servers client 
+if LIBEVENTM_OPT
+    MAYBE_LIBEVENTM = libeventm
+endif
+SUBDIRS = $(MAYBE_LIBEVENTM) libserver servers client
 
 .PHONY: format clang-scan cppcheck
 

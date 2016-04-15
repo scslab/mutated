@@ -2,32 +2,19 @@
 #include <iostream>
 
 #include <fcntl.h>
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
-#include <sys/syscall.h>
-#include <unistd.h>
 
 #include "client.hh"
-#include "generator.hh"
 #include "gen_memcache.hh"
 #include "gen_synthetic.hh"
+#include "generator.hh"
+#include "linux_compat.hh"
 #include "socket_buf.hh"
 #include "util.hh"
 
 using namespace std;
 using namespace std::placeholders;
 
-/**
- * A syscall implemented on the Shinjuku OS. We don't call on Linux.
- */
-static int epoll_spin(int epfd, struct epoll_event *events, int maxevents,
-                      int timeout)
-{
-    return (int)syscall(321, epfd, events, maxevents, timeout);
-}
-
-/* Microseconds in a second. */
-static constexpr double USEC = 1000000;
+/* Nanoseconds in a second. */
 static constexpr double NSEC = 1000000000;
 
 /**

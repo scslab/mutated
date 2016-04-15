@@ -1,8 +1,9 @@
 AM_CPPFLAGS = -D_REENTRANT -I$(srcdir)/../libserver
-LDADD = $(srcdir)/../libserver/libserver.la -lpthread 
+LDADD = -lpthread
 
-bin_PROGRAMS = client memcacheload test1
+bin_PROGRAMS = memcacheload client test1
 
+client_LDADD = $(srcdir)/../libserver/libserver.la
 client_SOURCES = \
 	accum.hh accum.cc \
 	client.hh client.cc \

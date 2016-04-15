@@ -9,6 +9,10 @@ Todo notes for mutated.
 * Should loaders be explicitly supported or out-of-band?
 * Argument parsing for different protocols.
 
+## Cross-OS
+
+* Support FreeBSD/OSX.
+
 ## Memcached
 
 * Loader should support key-value size distributions beyond fixed.

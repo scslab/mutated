@@ -3,8 +3,11 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 
+#include "memcache.hh"
 #include "gen_memcache.hh"
 #include "socket_buf.hh"
 #include "util.hh"
@@ -13,11 +16,34 @@ using namespace std;
 using namespace std::placeholders;
 
 // XXX: Future work:
+// - Creating a pool of key requests per memcache generator but only need one shared
 // - Actually parse return value
-// - Binary instead of ASCII?
 // - Support mixed GET/SET workloads
 // - Support choosing key with a distribution
 // - Support variable value size with SET workload
+
+/**
+ * Create a memcache request for a given key id.
+ */
+static void create_get_req(char *buf, uint64_t id)
+{
+    MemcHeader header;
+
+    header.type = MEMC_REQUEST;
+    header.cmd = MEMC_CMD_GET;
+    header.keylen = htons(memcache::KEYLEN);
+    header.extralen = 0;
+    header.datatype = 0;
+    header.status = htons(MEMC_OK);
+    header.bodylen = htonl(memcache::KEYLEN);
+    header.opaque = 0;
+    header.version = 0;
+
+    static_assert(memcache::KEYLEN >= 30, "keys are 30 chars long, not enough space");
+
+    memcpy(buf, &header, MEMC_HEADER_SIZE);
+    snprintf(buf + MEMC_HEADER_SIZE, memcache::KEYLEN, "key-%026" PRIu64, id);
+}
 
 /**
  * Construct.
@@ -31,9 +57,9 @@ memcache::memcache(const Config &cfg, std::mt19937 &rand) noexcept
 {
     UNUSED(cfg_);
 
-    static_assert(KEYLEN >= 30, "keys are 30 chars long, not enough space");
     for (size_t i = 1; i <= KEYS; i++) {
-        snprintf(keys_[i - 1], KEYREQ + 1, "get key-%026lu\r\n", i);
+        // create all needed requests upfront
+        create_get_req(keys_[i - 1], i);
     }
 }
 
@@ -56,7 +82,7 @@ void memcache::_send_request(bool measure, request_cb cb)
     sock_.write_commit(n);
 
     // add response to read queue
-    ioop io(5, &req, cb_);
+    ioop io(24, &req, cb_);
     sock_.read(io);
 }
 
@@ -77,7 +103,7 @@ void memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     if (status != 0) { // just delete on error
         requests_.drop(1);
         return;
-    } else if (n + m != 5) { // ensure valid packet
+    } else if (n + m != 24) { // ensure valid packet
         throw runtime_error("memcache::recv_response: unexpected packet size");
     }
 

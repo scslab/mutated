@@ -5,6 +5,7 @@
 #include <random>
 
 #include "generator.hh"
+#include "memcache.hh"
 #include "opts.hh"
 #include "socket_buf.hh"
 
@@ -39,14 +40,14 @@ class memcache : public generator
 
     static constexpr std::size_t KEYS = 10000;
     static constexpr std::size_t KEYLEN = 30;
-    static constexpr std::size_t KEYREQ = KEYLEN + 6; // 'get <key>\r\n'
+    static constexpr std::size_t KEYREQ = MEMC_HEADER_SIZE + KEYLEN;
 
   private:
     const Config &cfg_;
     std::mt19937 &rand_;
     ioop::ioop_cb cb_;
     req_buffer requests_;
-    char keys_[KEYS][KEYREQ + 1]; // +1 for '\0'
+    char keys_[KEYS][KEYREQ];
     uint64_t seqid_;
 
     void recv_response(Sock *sock, void *data, char *seg1, size_t n,

@@ -1,6 +1,7 @@
 #include <functional>
 #include <iostream>
 
+#include <inttypes.h>
 #include <fcntl.h>
 
 #include "client.hh"
@@ -329,7 +330,8 @@ void Client::print_summary(void)
         return;
     }
 
-    printf("%f\t%f\t%ld\t%f\t%f\t%ld\t%ld\t%ld\t%ld\t%f\t%f\t%ld\t%ld\t%ld\n",
+    printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+           "\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
            throughput, cfg.req_s, service_samples.min(),
            service_samples.mean(), service_samples.stddev(),
            service_samples.percentile(0.99), service_samples.percentile(0.999),

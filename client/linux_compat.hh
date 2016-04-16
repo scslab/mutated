@@ -46,7 +46,7 @@ struct itimerspec {
 /**
  * A syscall implemented on the Shinjuku OS. We don't call on Linux.
  */
-static inline int epoll_spin(int epfd, struct epoll_event *events, int maxevents, int timeout)
+static inline int epoll_spin(int, struct epoll_event *, int, int)
 {
     throw std::runtime_error("epoll_spin not supported");
 }

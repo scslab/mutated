@@ -199,8 +199,8 @@ void MemcacheLoad::run(void)
 
 const char *MemcacheLoad::next_key(uint64_t seqid)
 {
-    static char key[KEYSIZE];
-    snprintf(key, KEYSIZE, "key-%025" PRIu64, seqid);
+    static char key[KEYSIZE + 1]; // +1 for '\0'
+    snprintf(key, KEYSIZE + 1, "key-%026" PRIu64, seqid);
     return key;
 }
 

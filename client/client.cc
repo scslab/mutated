@@ -194,7 +194,7 @@ generator *Client::new_connection(void)
         gen = new synthetic(cfg, randgen);
         break;
     case Config::MEMCACHE:
-        gen = new memcache(cfg);
+        gen = new memcache(cfg, randgen);
         break;
     default:
         throw runtime_error("Unknown protocol");

@@ -23,10 +23,9 @@ struct memreq {
 
     memreq(void) noexcept : memreq(false, nullptr) {}
 
-    memreq(bool m, request_cb c) noexcept
-      : measure{m}
-      , cb{c}
-      , start_ts{generator::clock::now()}
+    memreq(bool m, request_cb c) noexcept : measure{m},
+                                            cb{c},
+                                            start_ts{generator::clock::now()}
     {
     }
 };

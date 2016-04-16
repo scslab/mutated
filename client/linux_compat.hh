@@ -11,7 +11,8 @@
 /**
  * A syscall implemented on the Shinjuku OS. We don't call on Linux.
  */
-static inline int epoll_spin(int epfd, struct epoll_event *events, int maxevents, int timeout)
+static inline int epoll_spin(int epfd, struct epoll_event *events,
+                             int maxevents, int timeout)
 {
     return (int)syscall(321, epfd, events, maxevents, timeout);
 }
@@ -24,10 +25,10 @@ static inline int epoll_spin(int epfd, struct epoll_event *events, int maxevents
 #include <unistd.h>
 
 #define CLOCK_MONOTONIC 0
-#define EPOLLIN         0
-#define EPOLLOUT        1
-#define EPOLLET         2
-#define EPOLL_CTL_ADD   3
+#define EPOLLIN 0
+#define EPOLLOUT 1
+#define EPOLLET 2
+#define EPOLL_CTL_ADD 3
 
 struct epoll_data {
     void *ptr;
@@ -51,7 +52,7 @@ static inline int epoll_spin(int, struct epoll_event *, int, int)
     throw std::runtime_error("epoll_spin not supported");
 }
 
-static inline int epoll_wait(int , struct epoll_event *, int, int)
+static inline int epoll_wait(int, struct epoll_event *, int, int)
 {
     throw std::runtime_error("epoll_wait not supported");
 }
@@ -66,12 +67,12 @@ static inline int timerfd_create(int, int)
     throw std::runtime_error("timerfd_create not supported");
 }
 
-static inline int epoll_ctl(int, int, int, epoll_event*)
+static inline int epoll_ctl(int, int, int, epoll_event *)
 {
     throw std::runtime_error("epoll_ctl not supported");
 }
 
-static inline int timerfd_settime(int, int, itimerspec *, void*)
+static inline int timerfd_settime(int, int, itimerspec *, void *)
 {
     throw std::runtime_error("timerfd_settime not supported");
 }

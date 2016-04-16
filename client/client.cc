@@ -314,7 +314,8 @@ void Client::print_header(void)
 {
     if (!cfg.machine_readable) {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+             << endl;
     }
 }
 

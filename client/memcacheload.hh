@@ -26,13 +26,16 @@ class MemcacheLoad
 
     void epoll_watch(int fd, void *data, uint32_t events);
     void send_request(uint64_t seqid, bool quiet);
-    void recv_response(Sock *s, void *data, char *seg1, size_t n, char *seg2, size_t m, int status);
+    void recv_response(Sock *s, void *data, char *seg1, size_t n, char *seg2,
+                       size_t m, int status);
 
-    const char* next_key(uint64_t seqid);
-    const char* next_val(uint64_t seqid);
+    const char *next_key(uint64_t seqid);
+    const char *next_val(uint64_t seqid);
 
   public:
-    MemcacheLoad(const char* addr, unsigned short port, uint64_t toload, uint64_t valsize, uint64_t startid, uint64_t batch, uint64_t notify);
+    MemcacheLoad(const char *addr, unsigned short port, uint64_t toload,
+                 uint64_t valsize, uint64_t startid, uint64_t batch,
+                 uint64_t notify);
     void run(void);
 };
 

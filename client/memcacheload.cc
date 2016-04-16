@@ -29,8 +29,7 @@ static constexpr size_t FIXED_ARGS = 1;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl
-             << endl;
+        cerr << "invalid arguments!" << endl << endl;
     }
 
     cerr << "Usage: " << prog << " [options] <ip:port>" << endl;
@@ -38,10 +37,14 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "Options:" << endl;
     cerr << "  -h    : help" << endl;
     cerr << "  -k INT: the number of keys to load (default: 100K)" << endl;
-    cerr << "  -v INT: the size of the values stored with keys (default: 64KB)" << endl;
-    cerr << "  -n INT: the key sequence number to start from (default: 1)" << endl;
+    cerr << "  -v INT: the size of the values stored with keys (default: 64KB)"
+         << endl;
+    cerr << "  -n INT: the key sequence number to start from (default: 1)"
+         << endl;
     cerr << "  -b INT: the load batch size to use (default: 100)" << endl;
-    cerr << "  -e INT: ask server to notify every INT sets of success (default: 25)" << endl;
+    cerr << "  -e INT: ask server to notify every INT sets of success "
+            "(default: 25)"
+         << endl;
 
     exit(status);
 }
@@ -62,7 +65,6 @@ class Config
 
     Config(int argc, char *argv[]);
 };
-
 
 /**
  * Parse command line.
@@ -116,10 +118,11 @@ Config::Config(int argc, char *argv[])
 /**
  * Main method -- launch memcacheload.
  */
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     Config cfg(argc, argv);
-    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.valn, cfg.start, cfg.batch, cfg.notify);
+    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.valn, cfg.start,
+                     cfg.batch, cfg.notify);
     mem.run();
     return EXIT_SUCCESS;
 }
@@ -127,19 +130,21 @@ int main(int argc, char* argv[])
 /**
  * Construct a new memcache data loader.
  */
-MemcacheLoad::MemcacheLoad(const char* addr, unsigned short port, uint64_t toload, uint64_t valsize, uint64_t startid, uint64_t batch, uint64_t notify)
-    : epollfd_{SystemCall(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
-    , sock_{make_unique<Sock>()}
-    , cb_{bind(&MemcacheLoad::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
-    , toload_{toload}
-    , sent_{0}
-    , recv_{0}
-    , valsize_{valsize}
-    , val_{make_unique<char[]>(valsize_)}
-    , seqid_{startid}
-    , batch_{batch}
-    , onwire_{0}
-    , notify_{notify}
+MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
+                           uint64_t toload, uint64_t valsize, uint64_t startid,
+                           uint64_t batch, uint64_t notify)
+  : epollfd_{SystemCall(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
+  , sock_{make_unique<Sock>()}
+  , cb_{bind(&MemcacheLoad::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
+  , toload_{toload}
+  , sent_{0}
+  , recv_{0}
+  , valsize_{valsize}
+  , val_{make_unique<char[]>(valsize_)}
+  , seqid_{startid}
+  , batch_{batch}
+  , onwire_{0}
+  , notify_{notify}
 {
     sock_->connect(addr, port);
     epoll_watch(sock_->fd(), nullptr, EPOLLIN | EPOLLOUT);
@@ -152,7 +157,7 @@ MemcacheLoad::MemcacheLoad(const char* addr, unsigned short port, uint64_t toloa
  * @data: a cookie for the event.
  * @event: the event mask.
  */
-void MemcacheLoad::epoll_watch(int fd, void* data, uint32_t events)
+void MemcacheLoad::epoll_watch(int fd, void *data, uint32_t events)
 {
     epoll_event ev;
     ev.events = events | EPOLLET;
@@ -173,7 +178,8 @@ void MemcacheLoad::run(void)
     while (true) {
         while (sent_ < toload_ and onwire_ < batch_) {
             bool loud = ((sent_ + 1) % notify_) == 0 or sent_ == (toload_ - 1);
-            send_request(seqid_++, not loud); // we pre-increment to start keys at 1
+            send_request(seqid_++,
+                         not loud); // we pre-increment to start keys at 1
             sent_++;
             onwire_++;
         }
@@ -191,14 +197,14 @@ void MemcacheLoad::run(void)
     }
 }
 
-const char* MemcacheLoad::next_key(uint64_t seqid)
+const char *MemcacheLoad::next_key(uint64_t seqid)
 {
     static char key[KEYSIZE];
     snprintf(key, KEYSIZE, "key-%025" PRIu64, seqid);
     return key;
 }
 
-const char* MemcacheLoad::next_val(uint64_t seqid)
+const char *MemcacheLoad::next_val(uint64_t seqid)
 {
     UNUSED(seqid);
     return val_.get();
@@ -207,23 +213,23 @@ const char* MemcacheLoad::next_val(uint64_t seqid)
 void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 {
     // create our request
-    MemcHeader    header;
+    MemcHeader header;
     MemcExtrasSet extras;
-    const char*   key;
-    const char*   val;
-    MemcPacket    packet;
+    const char *key;
+    const char *val;
+    MemcPacket packet;
 
-    header.type       = MEMC_REQUEST;
-    header.cmd        = quiet ? MEMC_CMD_SETQ : MEMC_CMD_SET;
-    header.keylen     = htons(KEYSIZE);
-    header.extralen   = sizeof(extras);
-    header.datatype   = 0;
-    header.status     = htons(MEMC_OK);
-    header.bodylen    = htonl(KEYSIZE + sizeof(extras) + valsize_);
-    header.opaque     = 0;
-    header.version    = 0;
+    header.type = MEMC_REQUEST;
+    header.cmd = quiet ? MEMC_CMD_SETQ : MEMC_CMD_SET;
+    header.keylen = htons(KEYSIZE);
+    header.extralen = sizeof(extras);
+    header.datatype = 0;
+    header.status = htons(MEMC_OK);
+    header.bodylen = htonl(KEYSIZE + sizeof(extras) + valsize_);
+    header.opaque = 0;
+    header.version = 0;
 
-    extras.flags      = 0;
+    extras.flags = 0;
     extras.expiration = 0;
 
     key = next_key(seqid);
@@ -231,8 +237,8 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 
     packet.header = &header;
     packet.extras = reinterpret_cast<char *>(&extras);
-    packet.key    = key;
-    packet.value  = val;
+    packet.key = key;
+    packet.value = val;
 
     // add header to wire
     size_t n = MEMC_HEADER_SIZE, n1 = n;
@@ -277,8 +283,8 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
     }
 }
 
-void MemcacheLoad::recv_response(Sock* s, void* data, char* seg1, size_t n,
-                                 char* seg2, size_t m, int status)
+void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                                 char *seg2, size_t m, int status)
 {
     UNUSED(data);
     UNUSED(seg1);
@@ -286,11 +292,13 @@ void MemcacheLoad::recv_response(Sock* s, void* data, char* seg1, size_t n,
 
     // sanity checks
     if (sock_.get() != s) { // ensure right callback
-        throw runtime_error("MemcacheLoad::recv_response: wrong socket in callback");
+        throw runtime_error(
+          "MemcacheLoad::recv_response: wrong socket in callback");
     } else if (status != 0) { // just return on error
         return;
     } else if (n + m != MEMC_HEADER_SIZE) { // ensure valid packet
-        throw runtime_error("MemcacheLoad::recv_response: unexpected packet size");
+        throw runtime_error(
+          "MemcacheLoad::recv_response: unexpected packet size");
     }
 
     // mark done

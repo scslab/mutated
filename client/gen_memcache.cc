@@ -19,9 +19,9 @@ static const char *getreq = "get a\r\n";
  * Construct.
  */
 memcache::memcache(const Config &cfg) noexcept
-    : cfg_{cfg}
-    , cb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
-    , requests_{}
+  : cfg_{cfg},
+    cb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    requests_{}
 {
     UNUSED(cfg_);
 }

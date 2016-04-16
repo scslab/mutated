@@ -14,7 +14,7 @@ int set_affinity(int core);
 // XXX: Implement!
 #define CLOCK_MONOTONIC 0
 
-static inline int clock_gettime(int UNUSED clock, struct timespec*)
+static inline int clock_gettime(int UNUSED clock, struct timespec *)
 {
     // XXX: Implement!
     return 0;
@@ -22,11 +22,12 @@ static inline int clock_gettime(int UNUSED clock, struct timespec*)
 
 int set_affinity(int core);
 
-struct cpu_set_t {};
+struct cpu_set_t {
+};
 
 #define CPU_ISSET(i, cpuset) (true)
 
-static inline int pthread_getaffinity_np(pthread_t, size_t, cpu_set_t*)
+static inline int pthread_getaffinity_np(pthread_t, size_t, cpu_set_t *)
 {
     return 0;
 }

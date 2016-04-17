@@ -250,6 +250,23 @@ void Sock::write_commit(const size_t len)
 }
 
 /**
+ * Copy len bytes from data to the socket tx queue for transmission.
+ * @data: data to copy to the tx queue.
+ * @len: length of bytes to copy from data.
+ */
+void Sock::write(const void *data, const size_t len)
+{
+    const char *p = reinterpret_cast<const char *>(data);
+    size_t n1 = len;
+    auto wptrs = write_prepare(n1);
+    memcpy(wptrs.first, p, n1);
+    if (n1 != len) {
+        memcpy(wptrs.second, p + n1, len - n1);
+    }
+    write_commit(len);
+}
+
+/**
  * __socket_check_connected - check if their is a socket error on the file.
  * @fd: the file descriptor to check for a socket error.
  * @return: throws the error if present.

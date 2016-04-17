@@ -23,10 +23,10 @@ using namespace std::placeholders;
 
 static constexpr std::size_t KEYS = 10000;
 static constexpr std::size_t KEYLEN = 30;
-static constexpr std::size_t KEYREQ = MemcHeader::SIZE + KEYLEN;
+static constexpr std::size_t GETLEN = MemcHeader::SIZE + KEYLEN;
 
 static bool keys_setup_ = false;
-static char keys_[KEYS][KEYREQ];
+static char getreqs_[KEYS][GETLEN];
 
 /**
  * Create a memcache request for a given key id.
@@ -57,7 +57,7 @@ memcache::memcache(const Config &cfg, std::mt19937 &rand) noexcept
     // create all needed requests upfront
     if (not keys_setup_) {
         for (size_t i = 1; i <= KEYS; i++) {
-            create_get_req(keys_[i - 1], i);
+            create_get_req(getreqs_[i - 1], i);
         }
     }
 }
@@ -69,16 +69,10 @@ void memcache::_send_request(bool measure, request_cb cb)
 {
     // create our request
     memreq &req = requests_.queue_emplace(measure, cb);
-    char *key = keys_[seqid_++ % KEYS];
+    char *getr = getreqs_[seqid_++ % KEYS];
 
     // add req to write queue
-    size_t n = KEYREQ, n1 = n;
-    auto wptrs = sock_.write_prepare(n1);
-    memcpy(wptrs.first, key, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, key + n1, n - n1);
-    }
-    sock_.write_commit(n);
+    sock_.write(getr, GETLEN);
 
     // add response to read queue
     ioop io(MemcHeader::SIZE, &req, cb_);

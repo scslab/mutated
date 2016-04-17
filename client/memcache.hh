@@ -12,15 +12,13 @@
 #include "endian.hh"
 
 // Memcache type of packet.
-enum class MemcType : uint8_t
-{
+enum class MemcType : uint8_t {
     Request = 0x80,
     Response = 0x81,
 };
 
 // Memcache commands.
-enum class MemcCmd : uint8_t
-{
+enum class MemcCmd : uint8_t {
     Get = 0x00,
     Set = 0x01,
     Add = 0x02,
@@ -60,8 +58,7 @@ enum class MemcCmd : uint8_t
 };
 
 // Memcache status/error codes.
-enum class MemcStatus : uint16_t
-{
+enum class MemcStatus : uint16_t {
     OK = 0x0000,
     ErrorKeyNotFound = 0x0001,
     ErrorKeyExists = 0x0002,
@@ -110,7 +107,8 @@ struct MemcHeader {
 };
 
 // Extras associated with some memcache commands.
-struct MemcExtras {};
+struct MemcExtras {
+};
 
 // MemcExtrasSet represents the extra field for a set request.
 struct MemcExtrasSet : public MemcExtras {

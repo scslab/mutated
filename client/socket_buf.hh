@@ -93,6 +93,7 @@ class Sock
     /* Write queuing */
     std::pair<char *, char *> write_prepare(size_t &len);
     void write_commit(const size_t len);
+    void write(const void *data, const size_t len);
 
     /* Handle epoll events against this socket */
     void run_io(uint32_t events);

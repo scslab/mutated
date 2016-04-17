@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 /**
  * Construct a new memcache data loader.
  */
-MemcacheLoad::MemcacheLoad(const char* addr, unsigned short port,
+MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
                            uint64_t toload, uint64_t valsize, uint64_t startid,
                            uint64_t batch, uint64_t notify)
   : epollfd_{SystemCall(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
@@ -157,7 +157,7 @@ MemcacheLoad::MemcacheLoad(const char* addr, unsigned short port,
  * @data: a cookie for the event.
  * @event: the event mask.
  */
-void MemcacheLoad::epoll_watch(int fd, void* data, uint32_t events)
+void MemcacheLoad::epoll_watch(int fd, void *data, uint32_t events)
 {
     epoll_event ev;
     ev.events = events | EPOLLET;
@@ -214,46 +214,17 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 {
     // create our request
     MemcExtrasSet extras{};
-    MemcHeader header = MemcRequest(quiet ? MemcCmd::Setq : MemcCmd::Set, sizeof(extras), KEYSIZE, valsize_);
+    MemcHeader header = MemcRequest(quiet ? MemcCmd::Setq : MemcCmd::Set,
+                                    sizeof(extras), KEYSIZE, valsize_);
     const char *key = next_key(seqid);
     const char *val = next_val(seqid);
     header.hton();
 
-    // add header to wire
-    size_t n = MemcHeader::SIZE, n1 = n;
-    auto wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, &header, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, &header + n1, n - n1);
-    }
-    sock_->write_commit(n);
-
-    // add extras to wire
-    n = sizeof(extras), n1 = n;
-    wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, &extras, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, &extras + n1, n - n1);
-    }
-    sock_->write_commit(n);
-
-    // add key to wire
-    n = KEYSIZE, n1 = n;
-    wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, key, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, key + n1, n - n1);
-    }
-    sock_->write_commit(n);
-
-    // add value to wire
-    n = valsize_, n1 = n;
-    wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, val, n1);
-    if (n != n1) {
-        memcpy(wptrs.second, val + n1, n - n1);
-    }
-    sock_->write_commit(n);
+    // add request to wire
+    sock_->write(&header, MemcHeader::SIZE);
+    sock_->write(&extras, sizeof(extras));
+    sock_->write(key, KEYSIZE);
+    sock_->write(val, valsize_);
 
     // add response to read queue
     if (not quiet) {
@@ -262,8 +233,8 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
     }
 }
 
-void MemcacheLoad::recv_response(Sock* s, void* data, char* seg1, size_t n,
-                                 char* seg2, size_t m, int status)
+void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                                 char *seg2, size_t m, int status)
 {
     UNUSED(data);
     UNUSED(seg1);

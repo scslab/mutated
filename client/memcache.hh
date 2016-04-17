@@ -5,21 +5,81 @@
  * memcache.hh - representation of the memcache binary protocol.
  */
 
-// TODO: use scoped enums for constants
-// TODO: use subtyping for extras field?
-// TODO: add to/from network store order for header
-
 #include <cstdint>
 #include <iostream>
 #include <string>
 
-using MemcType = uint8_t;
-using MemcCmd = uint8_t;
-using MemcStatus = uint16_t;
+#include "endian.hh"
+
+// Memcache type of packet.
+enum class MemcType : uint8_t
+{
+    Request = 0x80,
+    Response = 0x81,
+};
+
+// Memcache commands.
+enum class MemcCmd : uint8_t
+{
+    Get = 0x00,
+    Set = 0x01,
+    Add = 0x02,
+    Replace = 0x03,
+    Delete = 0x04,
+    Increment = 0x05,
+    Decrement = 0x06,
+    Quit = 0x07,
+    Flush = 0x08,
+    Getq = 0x09,
+    Noop = 0x0a,
+    Version = 0x0b,
+    Getk = 0x0c,
+    Getkq = 0x0d,
+    Append = 0x0e,
+    Prepend = 0x0f,
+    Stat = 0x10,
+    Setq = 0x11,
+    Addq = 0x12,
+    Replaceq = 0x13,
+    Deleteq = 0x14,
+    Incrementq = 0x15,
+    Decrementq = 0x16,
+    Quitq = 0x17,
+    Flushq = 0x18,
+    Appendq = 0x19,
+    Prependq = 0x1a,
+    Verbosity = 0x1b, // memcache doesn't imp. but in spec;
+    Touch = 0x1c,
+    Gat = 0x1d,
+    Gatq = 0x1e,
+    Gatk = 0x23,
+    Gatkq = 0x24,
+    Sasl_list_mechs = 0x20,
+    Sasl_auth = 0x21,
+    Sasl_step = 0x22,
+};
+
+// Memcache status/error codes.
+enum class MemcStatus : uint16_t
+{
+    OK = 0x0000,
+    ErrorKeyNotFound = 0x0001,
+    ErrorKeyExists = 0x0002,
+    ErrorValueTooLarge = 0x0003,
+    ErrorInvalidArgument = 0x0004,
+    ErrorItemNotStored = 0x0005,
+    ErrorNonNumeric = 0x0006,
+    ErrorAuthFailed = 0x0020,
+    ErrorUnknownCommand = 0x0081,
+    ErrorOutOfMemory = 0x0082,
+    ErrorBusy = 0x0085,
+};
 
 // MemcHeader represents the header of a memcache binary protocl request or
 // response.
 struct MemcHeader {
+    static constexpr std::size_t SIZE = 24;
+
     MemcType type;     // (aka 'magic) request or response?
     MemcCmd cmd;       // memcache operation
     uint16_t keylen;   // length of key
@@ -29,10 +89,46 @@ struct MemcHeader {
     uint32_t bodylen;  // total body length (key + extra + value)
     uint32_t opaque;   // field associated with key-value controlable by user
     uint64_t version;  // version of key-value pair
+
+    void hton(void)
+    {
+        keylen = htons(keylen);
+        status = MemcStatus(htons(uint16_t(status)));
+        bodylen = htonl(bodylen);
+        opaque = htonl(opaque);
+        version = htonll(opaque);
+    }
+
+    void ntoh(void)
+    {
+        keylen = ntohs(keylen);
+        status = MemcStatus(ntohs(uint16_t(status)));
+        bodylen = ntohl(bodylen);
+        opaque = ntohl(opaque);
+        version = ntohll(opaque);
+    }
 };
 
-// Memcache header size
-constexpr std::size_t MEMC_HEADER_SIZE = sizeof(MemcHeader);
+// Extras associated with some memcache commands.
+struct MemcExtras {};
+
+// MemcExtrasSet represents the extra field for a set request.
+struct MemcExtrasSet : public MemcExtras {
+    uint32_t flags;
+    uint32_t expiration;
+};
+
+// MemcExtrasIncr represents the extra field for a increment/decrement request.
+struct MemcExtrasIncr : public MemcExtras {
+    uint64_t initial;
+    uint64_t delta;
+    uint32_t expiration;
+};
+
+// MemcExtrasTouch represents the extra field for a touch request.
+struct MemcExtrasTouch : public MemcExtras {
+    uint32_t expiration;
+};
 
 // MemcPacket represents (as best as possible in C++) a memcache
 // request/response packet. This is contiguous on the wire but we can't
@@ -40,131 +136,30 @@ constexpr std::size_t MEMC_HEADER_SIZE = sizeof(MemcHeader);
 // sizing.
 struct MemcPacket {
     MemcHeader *header;
-    const char *extras;
+    MemcExtras *extras;
     const char *key;
     const char *value;
 };
 
-// MemcExtrasSet represents the extra field for a set request.
-struct MemcExtrasSet {
-    uint32_t flags;
-    uint32_t expiration;
-};
+/**
+ * Construct a new memcache request header.
+ */
+inline MemcHeader MemcRequest(MemcCmd c, uint8_t el, uint16_t kl, uint32_t vl)
+{
+    MemcHeader hdr;
 
-// MemcExtrasIncr represents the extra field for a increment/decrement request.
-struct MemcExtrasIncr {
-    uint64_t initial;
-    uint64_t delta;
-    uint32_t expiration;
-};
+    hdr.type = MemcType::Request;
+    hdr.cmd = c;
+    hdr.keylen = kl;
+    hdr.extralen = el;
+    hdr.datatype = 0;
+    hdr.status = MemcStatus::OK;
+    hdr.bodylen = el + kl + vl;
+    hdr.opaque = 0;
+    hdr.version = 0;
 
-// MemcExtrasTouch represents the extra field for a touch request.
-struct MemcExtrasTouch {
-    uint32_t expiration;
-};
-
-// Magic codes / packet types
-constexpr MemcType MEMC_REQUEST = 0x80;
-constexpr MemcType MEMC_RESPONE = 0x81;
-
-// Memcache commands
-constexpr MemcCmd MEMC_CMD_GET = 0x00;
-constexpr MemcCmd MEMC_CMD_SET = 0x01;
-constexpr MemcCmd MEMC_CMD_ADD = 0x02;
-constexpr MemcCmd MEMC_CMD_REPLACE = 0x03;
-constexpr MemcCmd MEMC_CMD_DELETE = 0x04;
-constexpr MemcCmd MEMC_CMD_INCREMENT = 0x05;
-constexpr MemcCmd MEMC_CMD_DECREMENT = 0x06;
-constexpr MemcCmd MEMC_CMD_QUIT = 0x07;
-constexpr MemcCmd MEMC_CMD_FLUSH = 0x08;
-constexpr MemcCmd MEMC_CMD_GETQ = 0x09;
-constexpr MemcCmd MEMC_CMD_NOOP = 0x0a;
-constexpr MemcCmd MEMC_CMD_VERSION = 0x0b;
-constexpr MemcCmd MEMC_CMD_GETK = 0x0c;
-constexpr MemcCmd MEMC_CMD_GETKQ = 0x0d;
-constexpr MemcCmd MEMC_CMD_APPEND = 0x0e;
-constexpr MemcCmd MEMC_CMD_PREPEND = 0x0f;
-constexpr MemcCmd MEMC_CMD_STAT = 0x10;
-constexpr MemcCmd MEMC_CMD_SETQ = 0x11;
-constexpr MemcCmd MEMC_CMD_ADDQ = 0x12;
-constexpr MemcCmd MEMC_CMD_REPLACEQ = 0x13;
-constexpr MemcCmd MEMC_CMD_DELETEQ = 0x14;
-constexpr MemcCmd MEMC_CMD_INCREMENTQ = 0x15;
-constexpr MemcCmd MEMC_CMD_DECREMENTQ = 0x16;
-constexpr MemcCmd MEMC_CMD_QUITQ = 0x17;
-constexpr MemcCmd MEMC_CMD_FLUSHQ = 0x18;
-constexpr MemcCmd MEMC_CMD_APPENDQ = 0x19;
-constexpr MemcCmd MEMC_CMD_PREPENDQ = 0x1a;
-constexpr MemcCmd MEMC_CMD_VERBOSITY =
-  0x1b; // memcache doesn't imp. but in spec;
-constexpr MemcCmd MEMC_CMD_TOUCH = 0x1c;
-constexpr MemcCmd MEMC_CMD_GAT = 0x1d;
-constexpr MemcCmd MEMC_CMD_GATQ = 0x1e;
-constexpr MemcCmd MEMC_CMD_GATK = 0x23;
-constexpr MemcCmd MEMC_CMD_GATKQ = 0x24;
-constexpr MemcCmd MEMC_CMD_SASL_LIST_MECHS = 0x20;
-constexpr MemcCmd MEMC_CMD_SASL_AUTH = 0x21;
-constexpr MemcCmd MEMC_CMD_SASL_STEP = 0x22;
-
-// Memcache status/error codes
-constexpr MemcStatus MEMC_OK = 0x0000;
-constexpr MemcStatus MEMC_ERROR_KEY_NOT_FOUND = 0x0001;
-constexpr MemcStatus MEMC_ERROR_KEY_EXISTS = 0x0002;
-constexpr MemcStatus MEMC_ERROR_VALUE_TOO_LARGE = 0x0003;
-constexpr MemcStatus MEMC_ERROR_INVALID_ARGUMENT = 0x0004;
-constexpr MemcStatus MEMC_ERROR_ITEM_NOT_STORED = 0x0005;
-constexpr MemcStatus MEMC_ERROR_NON_NUMERIC = 0x0006;
-constexpr MemcStatus MEMC_ERROR_AUTH_FAILED = 0x0020;
-constexpr MemcStatus MEMC_ERROR_UNKNOWN_COMMAND = 0x0081;
-constexpr MemcStatus MEMC_ERROR_OUT_OF_MEMORY = 0x0082;
-constexpr MemcStatus MEMC_ERROR_BUSY = 0x0085;
-
-// Memcache stat headers
-const std::string MEMC_STATS_TIME = "time";
-const std::string MEMC_STATS_CURR_ITEMS = "curr_items";
-const std::string MEMC_STATS_BYTES = "bytes";
-const std::string MEMC_STATS_BYTES_READ = "bytes_read";
-const std::string MEMC_STATS_BYTES_WRITTEN = "bytes_written";
-const std::string MEMC_STATS_EVICTIONS = "evictions";
-const std::string MEMC_STATS_EXPIRATIONS = "expired";
-const std::string MEMC_STATS_TOTAL_ITEMS = "total_items";
-const std::string MEMC_STATS_CURR_CONNECTIONS = "curr_connections";
-const std::string MEMC_STATS_TOTAL_CONNECTIONS = "total_connections";
-const std::string MEMC_STATS_AUTH_CMDS = "auth_cmds";
-const std::string MEMC_STATS_AUTH_ERRORS = "auth_errors";
-const std::string MEMC_STATS_GET = "cmd_get";
-const std::string MEMC_STATS_SET = "cmd_set";
-const std::string MEMC_STATS_DELETE = "cmd_delete";
-const std::string MEMC_STATS_TOUCH = "cmd_touch";
-const std::string MEMC_STATS_FLUSH = "cmd_flush";
-const std::string MEMC_STATS_GET_HITS = "get_hits";
-const std::string MEMC_STATS_GET_MISSES = "get_misses";
-const std::string MEMC_STATS_DELETE_HITS = "delete_hits";
-const std::string MEMC_STATS_DELETE_MISSES = "delete_misses";
-const std::string MEMC_STATS_INCR_HITS = "incr_hits";
-const std::string MEMC_STATS_INCR_MISSES = "incr_misses";
-const std::string MEMC_STATS_DECR_HITS = "decr_hits";
-const std::string MEMC_STATS_DECR_MISSES = "decr_misses";
-const std::string MEMC_STATS_TOUCH_HITS = "touch_hits";
-const std::string MEMC_STATS_TOUCH_MISSES = "touch_misses";
-const std::string MEMC_STATS_MEM_LIMIT = "limit_maxbytes";
-const std::string MEMC_STATS_CAS_HITS = "cas_hits";
-const std::string MEMC_STATS_CAS_MISS = "cas_misses";
-const std::string MEMC_STATS_CAS_BADVAL = "cas_badval";
-
-// Memcache 'stats settings' headers
-const std::string MEMC_STATS_SET_MAXBYTES = "maxbytes";
-const std::string MEMC_STATS_SET_TCPPORT = "tcpport";
-const std::string MEMC_STATS_SET_CAS = "cas_enabled";
-const std::string MEMC_STATS_SET_AUTH = "auth_enabled_sasl";
-const std::string MEMC_STATS_SET_MAXITEM = "item_size_max";
-
-// Memcache 'stats items' headers
-const std::string MEMC_STATS_ITEMS_SIZE = "chunk_size";
-const std::string MEMC_STATS_ITEMS_NUM = "number";
-const std::string MEMC_STATS_ITEMS_EVICTED = "evicted";
-const std::string MEMC_STATS_ITEMS_EVICTED_NZ = "evicted_nonzero";
-const std::string MEMC_STATS_ITEMS_OOM = "outofmemory";
+    return hdr;
+}
 
 /**
  * Print to stdout the memcache packet header.
@@ -181,12 +176,59 @@ inline void print_memc_header(const MemcHeader &header)
     std::cout << "-   keyl: 0x" << header.keylen << std::endl;
     std::cout << "-   extl: 0x" << (uint16_t)header.extralen << std::endl;
     std::cout << "-   data: 0x" << (uint16_t)header.datatype << std::endl;
-    std::cout << "- status: 0x" << header.status << std::endl;
+    std::cout << "- status: 0x" << (uint16_t)header.status << std::endl;
     std::cout << "-  bodyl: 0x" << header.bodylen << std::endl;
     std::cout << "- opaque: 0x" << header.opaque << std::endl;
     std::cout << "-   vers: 0x" << header.version << std::endl;
 
     std::cout.flags(flags);
 }
+
+// Memcache stat keys.
+const std::string MemcStatTime = "time";
+const std::string MemcStatCurrItems = "curr_items";
+const std::string MemcStatBytes = "bytes";
+const std::string MemcStatBytesRead = "bytes_read";
+const std::string MemcStatBytesWritten = "bytes_written";
+const std::string MemcStatEvictions = "evictions";
+const std::string MemcStatExpirations = "expired";
+const std::string MemcStatTotalItems = "total_items";
+const std::string MemcStatCurrConnections = "curr_connections";
+const std::string MemcStatTotalConnections = "total_connections";
+const std::string MemcStatAuthCmds = "auth_cmds";
+const std::string MemcStatAuthErrors = "auth_errors";
+const std::string MemcStatGet = "cmd_get";
+const std::string MemcStatSet = "cmd_set";
+const std::string MemcStatDelete = "cmd_delete";
+const std::string MemcStatTouch = "cmd_touch";
+const std::string MemcStatFlush = "cmd_flush";
+const std::string MemcStatGetHits = "get_hits";
+const std::string MemcStatGetMisses = "get_misses";
+const std::string MemcStatDeleteHits = "delete_hits";
+const std::string MemcStatDeleteMisses = "delete_misses";
+const std::string MemcStatIncrHits = "incr_hits";
+const std::string MemcStatIncrMisses = "incr_misses";
+const std::string MemcStatDecrHits = "decr_hits";
+const std::string MemcStatDecrMisses = "decr_misses";
+const std::string MemcStatTouchHits = "touch_hits";
+const std::string MemcStatTouchMisses = "touch_misses";
+const std::string MemcStatMemLimit = "limit_maxbytes";
+const std::string MemcStatCasHits = "cas_hits";
+const std::string MemcStatCasMiss = "cas_misses";
+const std::string MemcStatCasBadval = "cas_badval";
+
+// Memcache 'stats settings' keys.
+const std::string MemcStatSetMaxBytes = "maxbytes";
+const std::string MemcStatSetTcpPORT = "tcpport";
+const std::string MemcStatSetCas = "cas_enabled";
+const std::string MemcStatSetAuth = "auth_enabled_sasl";
+const std::string MemcStatSetMaxItem = "item_size_max";
+
+// Memcache 'stats ites' keys.
+const std::string MemcStatItemsSize = "chunk_size";
+const std::string MemcStatItemsNum = "number";
+const std::string MemcStatItemsEvicted = "evicted";
+const std::string MemcStatItemsEvictedNZ = "evicted_nonzero";
+const std::string MemcStatItemsOom = "outofmemory";
 
 #endif /* MUTATED_MEMCACHE_HH */

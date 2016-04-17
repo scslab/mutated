@@ -16,33 +16,30 @@ using namespace std;
 using namespace std::placeholders;
 
 // XXX: Future work:
-// - Creating a pool of key requests per memcache generator but only need one shared
 // - Actually parse return value
 // - Support mixed GET/SET workloads
 // - Support choosing key with a distribution
 // - Support variable value size with SET workload
+
+static constexpr std::size_t KEYS = 10000;
+static constexpr std::size_t KEYLEN = 30;
+static constexpr std::size_t KEYREQ = MemcHeader::SIZE + KEYLEN;
+
+static bool keys_setup_ = false;
+static char keys_[KEYS][KEYREQ];
 
 /**
  * Create a memcache request for a given key id.
  */
 static void create_get_req(char *buf, uint64_t id)
 {
-    MemcHeader header;
+    MemcHeader header = MemcRequest(MemcCmd::Get, 0, KEYLEN, 0);
+    header.hton();
 
-    header.type = MEMC_REQUEST;
-    header.cmd = MEMC_CMD_GET;
-    header.keylen = htons(memcache::KEYLEN);
-    header.extralen = 0;
-    header.datatype = 0;
-    header.status = htons(MEMC_OK);
-    header.bodylen = htonl(memcache::KEYLEN);
-    header.opaque = 0;
-    header.version = 0;
+    static_assert(KEYLEN >= 30, "keys are 30 chars long, not enough space");
 
-    static_assert(memcache::KEYLEN >= 30, "keys are 30 chars long, not enough space");
-
-    memcpy(buf, &header, MEMC_HEADER_SIZE);
-    snprintf(buf + MEMC_HEADER_SIZE, memcache::KEYLEN, "key-%026" PRIu64, id);
+    memcpy(buf, &header, MemcHeader::SIZE);
+    snprintf(buf + MemcHeader::SIZE, KEYLEN, "key-%026" PRIu64, id);
 }
 
 /**
@@ -57,9 +54,11 @@ memcache::memcache(const Config &cfg, std::mt19937 &rand) noexcept
 {
     UNUSED(cfg_);
 
-    for (size_t i = 1; i <= KEYS; i++) {
-        // create all needed requests upfront
-        create_get_req(keys_[i - 1], i);
+    // create all needed requests upfront
+    if (not keys_setup_) {
+        for (size_t i = 1; i <= KEYS; i++) {
+            create_get_req(keys_[i - 1], i);
+        }
     }
 }
 
@@ -82,7 +81,7 @@ void memcache::_send_request(bool measure, request_cb cb)
     sock_.write_commit(n);
 
     // add response to read queue
-    ioop io(24, &req, cb_);
+    ioop io(MemcHeader::SIZE, &req, cb_);
     sock_.read(io);
 }
 
@@ -103,7 +102,7 @@ void memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     if (status != 0) { // just delete on error
         requests_.drop(1);
         return;
-    } else if (n + m != 24) { // ensure valid packet
+    } else if (n + m != MemcHeader::SIZE) { // ensure valid packet
         throw runtime_error("memcache::recv_response: unexpected packet size");
     }
 

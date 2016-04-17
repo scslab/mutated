@@ -1,7 +1,7 @@
-#ifndef MUTATED_EPOLL_COMPAT_HH
-#define MUTATED_EPOLL_COMPAT_HH
+#ifndef MUTATED_LINUX_COMPAT_HH
+#define MUTATED_LINUX_COMPAT_HH
 
-#ifdef __linux__
+#if defined(__linux__)
 
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
@@ -79,4 +79,4 @@ static inline int timerfd_settime(int, int, itimerspec *, void *)
 
 #endif /* !linux */
 
-#endif /* MUTATED_EPOLL_COMPAT_HH */
+#endif /* MUTATED_LINUX_COMPAT_HH */

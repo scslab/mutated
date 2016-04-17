@@ -38,16 +38,11 @@ class memcache : public generator
     static constexpr std::size_t MAX_OUTSTANDING_REQS = 4096;
     using req_buffer = buffer<memreq, MAX_OUTSTANDING_REQS>;
 
-    static constexpr std::size_t KEYS = 10000;
-    static constexpr std::size_t KEYLEN = 30;
-    static constexpr std::size_t KEYREQ = MEMC_HEADER_SIZE + KEYLEN;
-
   private:
     const Config &cfg_;
     std::mt19937 &rand_;
     ioop::ioop_cb cb_;
     req_buffer requests_;
-    char keys_[KEYS][KEYREQ];
     uint64_t seqid_;
 
     void recv_response(Sock *sock, void *data, char *seg1, size_t n,

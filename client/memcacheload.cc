@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 /**
  * Construct a new memcache data loader.
  */
-MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
+MemcacheLoad::MemcacheLoad(const char* addr, unsigned short port,
                            uint64_t toload, uint64_t valsize, uint64_t startid,
                            uint64_t batch, uint64_t notify)
   : epollfd_{SystemCall(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
@@ -157,7 +157,7 @@ MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
  * @data: a cookie for the event.
  * @event: the event mask.
  */
-void MemcacheLoad::epoll_watch(int fd, void *data, uint32_t events)
+void MemcacheLoad::epoll_watch(int fd, void* data, uint32_t events)
 {
     epoll_event ev;
     ev.events = events | EPOLLET;
@@ -213,78 +213,57 @@ const char *MemcacheLoad::next_val(uint64_t seqid)
 void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 {
     // create our request
-    MemcHeader header;
-    MemcExtrasSet extras;
-    const char *key;
-    const char *val;
-    MemcPacket packet;
-
-    header.type = MEMC_REQUEST;
-    header.cmd = quiet ? MEMC_CMD_SETQ : MEMC_CMD_SET;
-    header.keylen = htons(KEYSIZE);
-    header.extralen = sizeof(extras);
-    header.datatype = 0;
-    header.status = htons(MEMC_OK);
-    header.bodylen = htonl(KEYSIZE + sizeof(extras) + valsize_);
-    header.opaque = 0;
-    header.version = 0;
-
-    extras.flags = 0;
-    extras.expiration = 0;
-
-    key = next_key(seqid);
-    val = next_val(seqid);
-
-    packet.header = &header;
-    packet.extras = reinterpret_cast<char *>(&extras);
-    packet.key = key;
-    packet.value = val;
+    MemcExtrasSet extras{};
+    MemcHeader header = MemcRequest(quiet ? MemcCmd::Setq : MemcCmd::Set, sizeof(extras), KEYSIZE, valsize_);
+    const char *key = next_key(seqid);
+    const char *val = next_val(seqid);
+    header.hton();
 
     // add header to wire
-    size_t n = MEMC_HEADER_SIZE, n1 = n;
+    size_t n = MemcHeader::SIZE, n1 = n;
     auto wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, packet.header, n1);
+    memcpy(wptrs.first, &header, n1);
     if (n != n1) {
-        memcpy(wptrs.second, packet.header + n1, n - n1);
+        memcpy(wptrs.second, &header + n1, n - n1);
     }
     sock_->write_commit(n);
 
     // add extras to wire
     n = sizeof(extras), n1 = n;
     wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, packet.extras, n1);
+    memcpy(wptrs.first, &extras, n1);
     if (n != n1) {
-        memcpy(wptrs.second, packet.extras + n1, n - n1);
+        memcpy(wptrs.second, &extras + n1, n - n1);
     }
     sock_->write_commit(n);
 
     // add key to wire
     n = KEYSIZE, n1 = n;
     wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, packet.key, n1);
+    memcpy(wptrs.first, key, n1);
     if (n != n1) {
-        memcpy(wptrs.second, packet.key + n1, n - n1);
+        memcpy(wptrs.second, key + n1, n - n1);
     }
     sock_->write_commit(n);
 
     // add value to wire
     n = valsize_, n1 = n;
     wptrs = sock_->write_prepare(n1);
-    memcpy(wptrs.first, packet.value, n1);
+    memcpy(wptrs.first, val, n1);
     if (n != n1) {
-        memcpy(wptrs.second, packet.value + n1, n - n1);
+        memcpy(wptrs.second, val + n1, n - n1);
     }
     sock_->write_commit(n);
 
     // add response to read queue
     if (not quiet) {
-        ioop io(MEMC_HEADER_SIZE, nullptr, cb_);
+        ioop io(MemcHeader::SIZE, nullptr, cb_);
         sock_->read(io);
     }
 }
 
-void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
-                                 char *seg2, size_t m, int status)
+void MemcacheLoad::recv_response(Sock* s, void* data, char* seg1, size_t n,
+                                 char* seg2, size_t m, int status)
 {
     UNUSED(data);
     UNUSED(seg1);
@@ -296,7 +275,7 @@ void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
           "MemcacheLoad::recv_response: wrong socket in callback");
     } else if (status != 0) { // just return on error
         return;
-    } else if (n + m != MEMC_HEADER_SIZE) { // ensure valid packet
+    } else if (n + m != MemcHeader::SIZE) { // ensure valid packet
         throw runtime_error(
           "MemcacheLoad::recv_response: unexpected packet size");
     }

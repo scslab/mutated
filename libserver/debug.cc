@@ -3,7 +3,7 @@
 
 #include "debug.hh"
 
-void NORETURN panic(const char *s, ...)
+[[noreturn]] void panic(const char *s, ...)
 {
     va_list ap;
     va_start(ap, s);

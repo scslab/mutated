@@ -118,80 +118,82 @@ void Sock::connect(const char *addr, unsigned short portt)
  */
 void Sock::rx(void)
 {
-    // XXX: this should perhaps be done as a loop until the socket returns
-    // EAGAIN, hard to reason that the current approach is sound. If we finish
-    // an rx() call and haven't pulled all data off the wire, then no future
-    // epoll event will be generated (we are using edge-triggering I believe),
-    // and so we rely on a future app-packet generation event to call rx()...
-    // This seems like it could fail for large app-packet sizes.
-
-    // is anything pending for read?
-    if (rxcbs.items() == 0) {
-        return;
-    }
-
-    // do the read
-    ssize_t nbytes;
-    size_t n = rbuf.space(), n1 = n;
-    auto rptrs = rbuf.queue_prep(n1);
-    if (rptrs.second == nullptr) {
-        // no wrapping, normal read
-        nbytes = ::read(fd_, rptrs.first, n);
-    } else {
-        // need to wrap, so use writev
-        iovec iov[2];
-        iov[0].iov_base = rptrs.first;
-        iov[0].iov_len = n1;
-        iov[1].iov_base = rptrs.second;
-        iov[1].iov_len = n - n1;
-        nbytes = ::readv(fd_, iov, 2);
-    }
-
-    if (nbytes < 0 and errno == EAGAIN) {
-        rx_rdy = false;
-        return;
-    } else if (nbytes <= 0) {
-        throw system_error(errno, system_category(), "Sock::rx: readv error");
-    } else if (size_t(nbytes) > n) {
-        throw runtime_error("Sock::rx: read returned more bytes than asked");
-    }
-    rbuf.queue_commit(nbytes);
-
-    // TODO: Could drop partial header/bodies when there is no callback
-    // registered... may be a win for protocols that have potentially large
-    // bodies.
-
-    for (auto &rxcb : rxcbs) {
-        if (rxcb.hdrlen > 0) {
-            if (rbuf.items() < rxcb.hdrlen) {
-                break;
-            }
-            if (rxcb.hdrcb) {
-                n = n1 = rxcb.hdrlen;
-                rptrs = rbuf.peek(n1);
-                // parse header and set body length from it
-                rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first, n1,
-                                          rptrs.second, n - n1, 0);
-            }
-            rbuf.drop(rxcb.hdrlen);
-            rxcb.hdrlen = 0; // mark header done
+    // run till we block (EAGAIN)
+    while (true) {
+        // is anything pending for read?
+        if (rxcbs.items() == 0) {
+            return;
         }
 
-        if (rxcb.bodylen > 0) {
-            if (rbuf.items() < rxcb.bodylen) {
-                break;
-            }
-            if (rxcb.bodycb) {
-                n = n1 = rxcb.bodylen;
-                rptrs = rbuf.peek(n1);
-                rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1, rptrs.second,
-                            n - n1, 0);
-            }
-            rbuf.drop(rxcb.bodylen);
-            rxcb.bodylen = 0; // mark body done
+        // do the read
+        ssize_t nbytes;
+        size_t n = rbuf.space(), n1 = n;
+        auto rptrs = rbuf.queue_prep(n1);
+        if (rptrs.second == nullptr) {
+            // no wrapping, normal read
+            nbytes = ::read(fd_, rptrs.first, n);
+        } else {
+            // need to wrap, so use writev
+            iovec iov[2];
+            iov[0].iov_base = rptrs.first;
+            iov[0].iov_len = n1;
+            iov[1].iov_base = rptrs.second;
+            iov[1].iov_len = n - n1;
+            nbytes = ::readv(fd_, iov, 2);
         }
 
-        rxcbs.drop(1); // app-packet done
+        if (nbytes < 0 and errno == EAGAIN) {
+            rx_rdy = false;
+            return;
+        } else if (nbytes <= 0) {
+            throw system_error(errno, system_category(), "Sock::rx: readv error");
+        } else if (size_t(nbytes) > n) {
+            throw runtime_error("Sock::rx: read returned more bytes than asked");
+        }
+        rbuf.queue_commit(nbytes);
+
+        for (auto &rxcb : rxcbs) {
+            if (rxcb.hdrlen > 0) {
+                if (rbuf.items() < rxcb.hdrlen) {
+                    if (!rxcb.hdrcb) { // partial drop when no cb
+                        size_t n = rbuf.items();
+                        rxcb.hdrlen -= n;
+                        rbuf.drop(n);
+                    }
+                    break;
+                }
+                if (rxcb.hdrcb) {
+                    n = n1 = rxcb.hdrlen;
+                    rptrs = rbuf.peek(n1);
+                    // parse header and set body length from it
+                    rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first, n1,
+                                              rptrs.second, n - n1, 0);
+                }
+                rbuf.drop(rxcb.hdrlen);
+                rxcb.hdrlen = 0; // mark header done
+            }
+
+            if (rxcb.bodylen > 0) {
+                if (rbuf.items() < rxcb.bodylen) {
+                    if (!rxcb.bodycb) { // partial drop when no cb
+                        size_t n = rbuf.items();
+                        rxcb.bodylen -= n;
+                        rbuf.drop(n);
+                    }
+                    break;
+                }
+                if (rxcb.bodycb) {
+                    n = n1 = rxcb.bodylen;
+                    rptrs = rbuf.peek(n1);
+                    rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1, rptrs.second,
+                                n - n1, 0);
+                }
+                rbuf.drop(rxcb.bodylen);
+                rxcb.bodylen = 0; // mark body done
+            }
+
+            rxcbs.drop(1); // app-packet done
+        }
     }
 }
 

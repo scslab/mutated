@@ -108,6 +108,22 @@ class Sock
     void write_commit(const size_t len);
     void write(const void *data, const size_t len);
 
+    /* Write to the queue by constructing in-place */
+    template<class T, class... Args>
+    void write_emplace(Args &&... args)
+    {
+        std::size_t n = sizeof(T), n1 = n;
+        auto p = write_prepare(n1);
+        if (p.second == nullptr) {
+            ::new (static_cast<void *>(p.first)) T(std::forward<Args>(args)...);
+        } else {
+            T t(std::forward<Args>(args)...);
+            memcpy(p.first, &t, n1);
+            memcpy(p.second, &t+n1, n - n1);
+        }
+        write_commit(n);
+    }
+
     /* Handle epoll events against this socket */
     void run_io(uint32_t events);
 };

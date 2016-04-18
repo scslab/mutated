@@ -90,30 +90,25 @@ void memcache::_send_request(bool measure, request_cb cb)
 {
     uint64_t id = seqid_++;
     uint16_t keylen;
-    uint32_t vallen;
-    char *key, *val;
+    char *key;
 
     // create our request
     MemcCmd op = choose_cmd();
     key = choose_key(id, keylen);
 
-    // TODO: can optimize slightly to avoid memcpy as much
-
     // add req to write queue
     if (op == MemcCmd::Get) {
-        MemcHeader header = MemcRequest(op, 0, keylen, 0);
-        header.hton();
-        sock_.write(&header, MemcHeader::SIZE);
+        sock_.write_emplace<MemcHeader>(MemcType::Request, op, 0, keylen, 0);
         sock_.write(key, keylen);
     } else {
-        val = choose_val(id, vallen);
-        MemcExtrasSet extra{};
-        MemcHeader header = MemcRequest(op, sizeof(extra), keylen, vallen);
-        header.hton();
-        sock_.write(&header, MemcHeader::SIZE);
-        sock_.write(&extra, sizeof(extra));
+        sock_.write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), keylen, cfg_.valsize);
+        sock_.write_emplace<MemcExtrasSet>();
         sock_.write(key, keylen);
-        sock_.write(val, vallen);
+
+        // just write random bytes for the value
+        size_t vn = cfg_.valsize;
+        sock_.write_prepare(vn);
+        sock_.write_commit(cfg_.valsize);
     }
 
     // add response to read queue

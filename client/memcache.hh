@@ -87,6 +87,22 @@ struct MemcHeader {
     uint32_t opaque;   // field associated with key-value controlable by user
     uint64_t version;  // version of key-value pair
 
+    MemcHeader(void) noexcept : MemcHeader(MemcType::Request, MemcCmd::Get, 0, 0, 0) {}
+
+    MemcHeader(MemcType t, MemcCmd c, uint8_t el, uint16_t kl, uint32_t vl) noexcept
+        : type{t},
+          cmd{c},
+          keylen{kl},
+          extralen{el},
+          datatype{0},
+          status{MemcStatus::OK},
+          bodylen{el + kl + vl},
+          opaque{0},
+          version{0}
+    {
+        hton();
+    }
+
     void hton(void)
     {
         keylen = htons(keylen);
@@ -106,6 +122,14 @@ struct MemcHeader {
     }
 };
 
+/**
+ * Construct a new memcache request header.
+ */
+inline MemcHeader MemcRequest(MemcCmd c, uint8_t el, uint16_t kl, uint32_t vl)
+{
+    return {MemcType::Request, c, el, kl, vl};
+}
+
 // Extras associated with some memcache commands.
 struct MemcExtras {
 };
@@ -114,6 +138,8 @@ struct MemcExtras {
 struct MemcExtrasSet : public MemcExtras {
     uint32_t flags;
     uint32_t expiration;
+
+    MemcExtrasSet(void) noexcept : flags{0}, expiration{0} {}
 };
 
 // MemcExtrasIncr represents the extra field for a increment/decrement request.
@@ -138,26 +164,6 @@ struct MemcPacket {
     const char *key;
     const char *value;
 };
-
-/**
- * Construct a new memcache request header.
- */
-inline MemcHeader MemcRequest(MemcCmd c, uint8_t el, uint16_t kl, uint32_t vl)
-{
-    MemcHeader hdr;
-
-    hdr.type = MemcType::Request;
-    hdr.cmd = c;
-    hdr.keylen = kl;
-    hdr.extralen = el;
-    hdr.datatype = 0;
-    hdr.status = MemcStatus::OK;
-    hdr.bodylen = el + kl + vl;
-    hdr.opaque = 0;
-    hdr.version = 0;
-
-    return hdr;
-}
 
 /**
  * Print to stdout the memcache packet header.

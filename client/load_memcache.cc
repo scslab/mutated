@@ -14,7 +14,6 @@
 #include "util.hh"
 
 // TODO:
-// - avoid memcpy to construct packet
 // - support distributions for key/value size
 
 using namespace std;
@@ -211,16 +210,13 @@ const char *MemcacheLoad::next_val(uint64_t seqid)
 void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 {
     // create our request
-    MemcExtrasSet extras{};
-    MemcHeader header = MemcRequest(quiet ? MemcCmd::Setq : MemcCmd::Set,
-                                    sizeof(extras), KEYSIZE, valsize_);
     const char *key = next_key(seqid);
     const char *val = next_val(seqid);
-    header.hton();
 
     // add request to wire
-    sock_->write(&header, MemcHeader::SIZE);
-    sock_->write(&extras, sizeof(extras));
+    MemcCmd op = quiet ? MemcCmd::Setq : MemcCmd::Set;
+    sock_->write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), KEYSIZE, valsize_);
+    sock_->write_emplace<MemcExtrasSet>();
     sock_->write(key, KEYSIZE);
     sock_->write(val, valsize_);
 

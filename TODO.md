@@ -7,7 +7,6 @@ Todo notes for mutated.
 * Cleanup how multiple protocols are supported.
 * Pull common code out of client into own lib.
 * Should loaders be explicitly supported or out-of-band?
-* Argument parsing for different protocols.
 * Support varying (how to specify?) workload intensity (i.e., not a constant
   req/s rate).
 

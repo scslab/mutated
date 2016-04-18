@@ -56,7 +56,7 @@ class Client
     void print_summary(void);
 
   public:
-    Client(int argc, char *argv[]);
+    Client(Config c);
     ~Client(void) noexcept;
 
     /* No copy or move. */

@@ -39,8 +39,11 @@ Sock::~Sock(void) noexcept
 {
     // cancel all pending read requests
     for (auto &rxcb : rxcbs) {
-        if (rxcb.cb) {
-            rxcb.cb(this, rxcb.cb_data, nullptr, 0, nullptr, 0, -EIO);
+        if (rxcb.hdrcb) {
+            rxcb.hdrcb(this, rxcb.cbdata, nullptr, 0, nullptr, 0, -EIO);
+        }
+        if (rxcb.bodycb) {
+            rxcb.bodycb(this, rxcb.cbdata, nullptr, 0, nullptr, 0, -EIO);
         }
     }
 
@@ -154,18 +157,41 @@ void Sock::rx(void)
     }
     rbuf.queue_commit(nbytes);
 
+    // TODO: Could drop partial header/bodies when there is no callback
+    // registered... may be a win for protocols that have potentially large
+    // bodies.
+
     for (auto &rxcb : rxcbs) {
-        if (rbuf.items() < rxcb.len) {
-            break;
+        if (rxcb.hdrlen > 0) {
+            if (rbuf.items() < rxcb.hdrlen) {
+                break;
+            }
+            if (rxcb.hdrcb) {
+                n = n1 = rxcb.hdrlen;
+                rptrs = rbuf.peek(n1);
+                // parse header and set body length from it
+                rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first, n1,
+                                          rptrs.second, n - n1, 0);
+            }
+            rbuf.drop(rxcb.hdrlen);
+            rxcb.hdrlen = 0; // mark header done
         }
-        if (rxcb.cb) {
-            n = n1 = rxcb.len;
-            rptrs = rbuf.peek(n1);
-            rxcb.cb(this, rxcb.cb_data, rptrs.first, n1, rptrs.second, n - n1,
-                    0);
+
+        if (rxcb.bodylen > 0) {
+            if (rbuf.items() < rxcb.bodylen) {
+                break;
+            }
+            if (rxcb.bodycb) {
+                n = n1 = rxcb.bodylen;
+                rptrs = rbuf.peek(n1);
+                rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1, rptrs.second,
+                            n - n1, 0);
+            }
+            rbuf.drop(rxcb.bodylen);
+            rxcb.bodylen = 0; // mark body done
         }
-        rbuf.drop(rxcb.len);
-        rxcbs.drop(1);
+
+        rxcbs.drop(1); // app-packet done
     }
 }
 

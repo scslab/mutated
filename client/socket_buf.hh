@@ -26,19 +26,32 @@ class Sock;
 class ioop
 {
   public:
-    using ioop_cb =
-      std::function<void(Sock *, void *, char *, size_t, char *, size_t, int)>;
+    using ioop_cb = std::function<size_t(Sock *, void *, char *, size_t,
+                                         char *, size_t, int)>;
 
-    size_t len;
-    void *cb_data;
-    ioop_cb cb;
+    size_t hdrlen;
+    ioop_cb hdrcb;
 
-    ioop(void) noexcept : len{0}, cb_data{nullptr}, cb{} {}
+    size_t bodylen;
+    ioop_cb bodycb;
 
-    ioop(size_t len_, void *data_, ioop_cb complete_) noexcept
-      : len{len_},
-        cb_data{data_},
-        cb{complete_}
+    void *cbdata;
+
+    ioop(void) noexcept : hdrlen{0},
+                          hdrcb{},
+                          bodylen{0},
+                          bodycb{},
+                          cbdata{nullptr}
+    {
+    }
+
+    ioop(size_t hdrlen_, ioop_cb hdrcb_, size_t bodylen_, ioop_cb bodycb_,
+         void *cbdata_)
+      : hdrlen{hdrlen_}
+      , hdrcb{hdrcb_}
+      , bodylen{bodylen_}
+      , bodycb{bodycb_}
+      , cbdata{cbdata_}
     {
     }
 

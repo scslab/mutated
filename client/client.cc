@@ -21,8 +21,8 @@ static constexpr double NSEC = 1000000000;
 /**
  * Create a new client.
  */
-Client::Client(int argc, char *argv[])
-  : cfg{argc, argv}
+Client::Client(Config c)
+  : cfg{c}
   , rd{}
   , randgen{rd()}
   , conn_dist{0, (int)cfg.conn_cnt - 1}
@@ -194,7 +194,7 @@ generator *Client::new_connection(void)
         gen = new synthetic(cfg, randgen);
         break;
     case Config::MEMCACHE:
-        gen = new memcache(cfg, randgen);
+        gen = new memcache(cfg, mt19937(rd()));
         break;
     default:
         throw runtime_error("Unknown protocol");
@@ -314,8 +314,7 @@ void Client::print_header(void)
 {
     if (!cfg.machine_readable) {
         cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-             << endl;
+                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
     }
 }
 

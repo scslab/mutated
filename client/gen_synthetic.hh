@@ -50,8 +50,8 @@ class synthetic : public generator
     req_buffer requests;
 
     uint64_t gen_service_time(void);
-    void recv_response(Sock *sock, void *data, char *seg1, size_t n,
-                       char *seg2, size_t m, int status);
+    size_t recv_response(Sock *sock, void *data, char *seg1, size_t n,
+                         char *seg2, size_t m, int status);
 
   protected:
     void _send_request(bool measure, request_cb cb) override;

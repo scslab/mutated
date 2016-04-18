@@ -68,15 +68,15 @@ void synthetic::_send_request(bool measure, request_cb cb)
     sock_.write_commit(n);
 
     // add response to read queue
-    ioop io(sizeof(resp_pkt), &req, cb_);
+    ioop io(sizeof(resp_pkt), cb_, 0, nullptr, &req);
     sock_.read(io);
 }
 
 /**
  * Handle parsing a response from a previous request.
  */
-void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
-                              char *seg2, size_t m, int status)
+size_t synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                                char *seg2, size_t m, int status)
 {
     UNUSED(seg1);
     UNUSED(seg2);
@@ -87,7 +87,7 @@ void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
 
     if (status != 0) { // just drop on error
         requests.drop(1);
-        return;
+        return 0;
     } else if (n + m != sizeof(resp_pkt)) { // ensure valid packet
         throw runtime_error("synth::recv_response: unexpected packet size");
     }
@@ -115,4 +115,7 @@ void synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
         wait_us = 0;
     }
     req.cb(this, service_us, wait_us, req.measure);
+
+    // no body, only a header
+    return 0;
 }

@@ -11,10 +11,18 @@ its inspiration and learning to.
 
 Mutated is BSD-licensed.
 
+## Supported protocols
+
+Currently we support our own synthetic protocol, and memcache. Adding new
+protocols should be fairly easy at this point.
+
 ## Using
 
+We split each supported protocol into its own binary for now so as to keep the
+command line interface focused and simple. Below is the synthetic protocol:
+
 ``` sh
-Usage: ./client/client [options] <ip:port> <generator> <exp. service us> <req/sec>
+Usage: ./client/mutated_synthetic [options] <ip:port> <exp. service us> <req/sec>
 
 Options:
   -h    : help
@@ -28,7 +36,6 @@ Options:
   -d OPT: the service time distribution (default: exponential)
   -n INT: the number of connections to open (round robin/random mode)
 
-  generators: synthetic, memcache
   connection modes: per_request, round_robin, random
   service distribution: fixed, exp, lognorm
 ```

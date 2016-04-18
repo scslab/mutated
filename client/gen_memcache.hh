@@ -16,15 +16,18 @@ struct memreq {
     using request_cb = generator::request_cb;
     using time_point = generator::time_point;
 
+    MemcCmd op;
     bool measure;
     request_cb cb;
     time_point start_ts;
 
-    memreq(void) noexcept : memreq(false, nullptr) {}
+    memreq(void) noexcept : memreq(MemcCmd::Get, false, nullptr) {}
 
-    memreq(bool m, request_cb c) noexcept : measure{m},
-                                            cb{c},
-                                            start_ts{generator::clock::now()}
+    memreq(MemcCmd o, bool m, request_cb c) noexcept
+      : op{o},
+        measure{m},
+        cb{c},
+        start_ts{generator::clock::now()}
     {
     }
 };
@@ -40,19 +43,24 @@ class memcache : public generator
 
   private:
     const Config &cfg_;
-    std::mt19937 &rand_;
+    std::mt19937 rand_;
+    std::uniform_real_distribution<> setget_;
     ioop::ioop_cb cb_;
     req_buffer requests_;
     uint64_t seqid_;
 
-    void recv_response(Sock *sock, void *data, char *seg1, size_t n,
-                       char *seg2, size_t m, int status);
+    MemcCmd choose_cmd(void);
+    char *choose_key(uint64_t id, uint16_t &n);
+    char *choose_val(uint64_t id, uint32_t &n);
+
+    size_t recv_response(Sock *sock, void *data, char *seg1, size_t n,
+                         char *seg2, size_t m, int status);
 
   protected:
     void _send_request(bool measure, request_cb cb) override;
 
   public:
-    memcache(const Config &cfg, std::mt19937 &rand) noexcept;
+    memcache(const Config &cfg, std::mt19937 &&rand) noexcept;
     ~memcache(void) noexcept {}
 
     /* No copy or move */

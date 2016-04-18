@@ -1,3 +1,7 @@
+/**
+ * opts_memcache.cc - Command line parser for memcache protocol.
+ */
+
 #include <cmath>
 #include <iostream>
 
@@ -9,7 +13,7 @@
 using namespace std;
 
 /* Fixed arguments required. */
-static constexpr size_t FIXED_ARGS = 4;
+static constexpr size_t FIXED_ARGS = 2;
 
 /* Default number of seconds to sample for. */
 static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
@@ -20,13 +24,13 @@ static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl << endl;
+        cerr << "invalid arguments!" << endl
+             << endl;
     }
 
-    cerr << "Usage: " << prog << " [options] "
-         << "<ip:port> <generator> <exp. service us> <req/sec>" << endl
-         << endl;
-    cerr << "Options:" << endl;
+    cerr << "Usage: " << prog << " [options] <ip:port> <req/sec>" << endl;
+    cerr << endl;
+    cerr << "Common options:" << endl;
     cerr << "  -h    : help" << endl;
     cerr << "  -r    : print raw samples" << endl;
     cerr << "  -e    : use Shinjuku's epoll_spin() system call" << endl;
@@ -35,13 +39,16 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;
     cerr << "  -l STR: label for machine-readable output (-r)" << endl;
     cerr << "  -m OPT: connection mode (default: round_robin)" << endl;
-    cerr << "  -d OPT: the service time distribution (default: exponential)"
+    cerr << "  -d OPT: service time distribution (default: exponential)"
          << endl;
-    cerr << "  -n INT: the number of connections to open (round robin/random "
-            "mode)"
-         << endl;
+    cerr << "  -n INT: number of connections to open (round robin/random "
+            "mode)" << endl;
     cerr << endl;
-    cerr << "  generators: synthetic, memcache" << endl;
+    cerr << "Memcache options:" << endl;
+    cerr << "  -k   INT: number of records to use" << endl;
+    cerr << "  -v   INT: size of the values (default: 4KB)" << endl;
+    cerr << "  -u FLOAT: ratio of set:get commands (default: 0.0)" << endl;
+    cerr << endl;
     cerr << "  connection modes: per_request, round_robin, random" << endl;
     cerr << "  service distribution: fixed, exp, lognorm" << endl;
 
@@ -49,72 +56,72 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
 }
 
 /**
- * Parse command line.
+ * Command line parser for memcache protocol.
  */
-Config::Config(int argc, char *argv[])
-  : port{0}
-  , label{"default"}
-  , service_us{0}
-  , req_s{0}
-  , warmup_seconds{5}
-  , cooldown_seconds{5}
-  , samples{0}
-  , machine_readable{false}
-  , use_epoll_spin{false}
-  , conn_mode{ROUND_ROBIN}
-  , conn_cnt{10}
-  , service_dist{EXPONENTIAL}
-  , protocol{SYNTHETIC}
-  , gen_argc{0}
-  , gen_argv{NULL}
+Config parse_memcache(int argc, char *argv[])
 {
+    Config cfg;
     int ret, c;
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "hrew:s:c:l:m:d:n:")) != -1) {
+    cfg.protocol = Config::MEMCACHE;
+
+    // unused options
+    cfg.service_us = 0;
+
+    while ((c = getopt(argc, argv, "hrew:s:c:l:m:d:n:k:v:u:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
         case 'r':
-            machine_readable = true;
+            cfg.machine_readable = true;
             break;
         case 'e':
-            use_epoll_spin = true;
+            cfg.use_epoll_spin = true;
             break;
         case 'w':
-            warmup_seconds = atoi(optarg);
+            cfg.warmup_seconds = atoi(optarg);
             break;
         case 's':
-            samples = atoi(optarg);
+            cfg.samples = atoi(optarg);
             break;
         case 'c':
-            cooldown_seconds = atoi(optarg);
+            cfg.cooldown_seconds = atoi(optarg);
             break;
         case 'l':
-            label = optarg;
+            cfg.label = optarg;
             break;
         case 'm':
             if (!strcmp(optarg, "per_request"))
-                conn_mode = PER_REQUEST;
+                cfg.conn_mode = Config::PER_REQUEST;
             else if (!strcmp(optarg, "round_robin"))
-                conn_mode = ROUND_ROBIN;
+                cfg.conn_mode = Config::ROUND_ROBIN;
             else if (!strcmp(optarg, "random"))
-                conn_mode = RANDOM;
+                cfg.conn_mode = Config::RANDOM;
             else
                 __printUsage(argv[0]);
             break;
         case 'd':
             if (!strcmp(optarg, "fixed"))
-                service_dist = FIXED;
+                cfg.service_dist = Config::FIXED;
             else if (!strcmp(optarg, "exp"))
-                service_dist = EXPONENTIAL;
+                cfg.service_dist = Config::EXPONENTIAL;
             else if (!strcmp(optarg, "lognorm"))
-                service_dist = LOG_NORMAL;
+                cfg.service_dist = Config::LOG_NORMAL;
             else
                 __printUsage(argv[0]);
             break;
         case 'n':
-            conn_cnt = atoi(optarg);
+            cfg.conn_cnt = atoi(optarg);
+            break;
+        case 'k':
+            cfg.records = atoll(optarg);
+            break;
+        case 'v':
+            cfg.valsize = atoll(optarg);
+            break;
+        case 'u':
+            cfg.setget = atof(optarg);
             break;
         default:
             __printUsage(argv[0]);
@@ -126,32 +133,21 @@ Config::Config(int argc, char *argv[])
     }
 
     // NOTE: keep 256 in sync with addr buffer size.
-    ret = sscanf(argv[optind + 0], "%256[^:]:%20hu", addr, &port);
+    ret = sscanf(argv[optind + 0], "%256[^:]:%20hu", cfg.addr, &cfg.port);
     if (ret != 2) {
         __printUsage(argv[0]);
     }
 
-    if (strcmp(argv[optind + 1], "synthetic") == 0) {
-        protocol = SYNTHETIC;
-    } else if (strcmp(argv[optind + 1], "memcache") == 0) {
-        protocol = MEMCACHE;
-    } else {
-        __printUsage(argv[0]);
-    }
-
-    ret = sscanf(argv[optind + 2], "%20lf", &service_us);
+    ret = sscanf(argv[optind + 1], "%20lf", &cfg.req_s);
     if (ret != 1) {
         __printUsage(argv[0]);
     }
 
-    ret = sscanf(argv[optind + 3], "%20lf", &req_s);
-    if (ret != 1) {
-        __printUsage(argv[0]);
+    if (cfg.samples == 0) {
+        cfg.samples = cfg.req_s * DEFAULT_SAMPLE_S;
     }
+    cfg.gen_argc = argc - optind - FIXED_ARGS;
+    cfg.gen_argv = &argv[cfg.gen_argc];
 
-    if (samples == 0) {
-        samples = req_s * DEFAULT_SAMPLE_S;
-    }
-    gen_argc = argc - optind - FIXED_ARGS;
-    gen_argv = &argv[gen_argc];
+    return cfg;
 }

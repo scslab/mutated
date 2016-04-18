@@ -3,14 +3,16 @@
 #include <system_error>
 
 #include "client.hh"
+#include "opts.hh"
 
 /**
- * Main method -- launch mutated.
+ * Main method -- launch mutated memcache.
  */
 int main(int argc, char *argv[])
 {
     try {
-        Client client{argc, argv};
+        Config cfg{parse_memcache(argc, argv)};
+        Client client{cfg};
         client.run();
     } catch (const std::system_error &e) {
         std::cerr << "System Error: " << e.what() << std::endl;

@@ -1,5 +1,5 @@
-#ifndef MUTATED_MEMCACHELOAD_HH
-#define MUTATED_MEMCACHELOAD_HH
+#ifndef MUTATED_LOAD_MEMCACHE_HH
+#define MUTATED_LOAD_MEMCACHE_HH
 
 #include <cstdint>
 #include <memory>
@@ -26,8 +26,8 @@ class MemcacheLoad
 
     void epoll_watch(int fd, void *data, uint32_t events);
     void send_request(uint64_t seqid, bool quiet);
-    void recv_response(Sock *s, void *data, char *seg1, size_t n, char *seg2,
-                       size_t m, int status);
+    size_t recv_response(Sock *s, void *data, char *seg1, size_t n, char *seg2,
+                         size_t m, int status);
 
     const char *next_key(uint64_t seqid);
     const char *next_val(uint64_t seqid);
@@ -39,4 +39,4 @@ class MemcacheLoad
     void run(void);
 };
 
-#endif /* MUTATED_MEMCACHELOAD_HH */
+#endif /* MUTATED_LOAD_MEMCACHE_HH */

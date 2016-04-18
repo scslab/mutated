@@ -9,8 +9,8 @@
 #include <unistd.h>
 
 #include "linux_compat.hh"
+#include "load_memcache.hh"
 #include "memcache.hh"
-#include "memcacheload.hh"
 #include "util.hh"
 
 // TODO:
@@ -29,22 +29,20 @@ static constexpr size_t FIXED_ARGS = 1;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl << endl;
+        cerr << "invalid arguments!" << endl
+             << endl;
     }
 
     cerr << "Usage: " << prog << " [options] <ip:port>" << endl;
     cerr << endl;
     cerr << "Options:" << endl;
     cerr << "  -h    : help" << endl;
-    cerr << "  -k INT: the number of keys to load (default: 100K)" << endl;
-    cerr << "  -v INT: the size of the values stored with keys (default: 64KB)"
-         << endl;
-    cerr << "  -n INT: the key sequence number to start from (default: 1)"
-         << endl;
-    cerr << "  -b INT: the load batch size to use (default: 100)" << endl;
+    cerr << "  -k INT: number of keys to load (default: 10K)" << endl;
+    cerr << "  -v INT: size of the values (default: 4KB)" << endl;
+    cerr << "  -n INT: starting key sequence number (default: 1)" << endl;
+    cerr << "  -b INT: load batch size to use (default: 100)" << endl;
     cerr << "  -e INT: ask server to notify every INT sets of success "
-            "(default: 25)"
-         << endl;
+            "(default: 25)" << endl;
 
     exit(status);
 }
@@ -71,8 +69,8 @@ class Config
  */
 Config::Config(int argc, char *argv[])
   : port{0}
-  , keys{100000}
-  , valn{64 * 1024}
+  , keys{10000}
+  , valn{4 * 1024}
   , start{1}
   , batch{100}
   , notify{25}
@@ -228,13 +226,13 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 
     // add response to read queue
     if (not quiet) {
-        ioop io(MemcHeader::SIZE, nullptr, cb_);
+        ioop io(MemcHeader::SIZE, cb_, 0, nullptr, nullptr);
         sock_->read(io);
     }
 }
 
-void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
-                                 char *seg2, size_t m, int status)
+size_t MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
+                                   char *seg2, size_t m, int status)
 {
     UNUSED(data);
     UNUSED(seg1);
@@ -245,7 +243,7 @@ void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
         throw runtime_error(
           "MemcacheLoad::recv_response: wrong socket in callback");
     } else if (status != 0) { // just return on error
-        return;
+        return 0;
     } else if (n + m != MemcHeader::SIZE) { // ensure valid packet
         throw runtime_error(
           "MemcacheLoad::recv_response: unexpected packet size");
@@ -254,4 +252,5 @@ void MemcacheLoad::recv_response(Sock *s, void *data, char *seg1, size_t n,
     // mark done
     recv_ += notify_;
     onwire_ -= notify_;
+    return 0;
 }

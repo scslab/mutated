@@ -1,17 +1,31 @@
+# TODO: Better way of having multiple protocols
+
 AM_CPPFLAGS = -D_REENTRANT -I$(srcdir)/../libserver
 LDADD = -lpthread
 
-bin_PROGRAMS = memcacheload client test1
+bin_PROGRAMS = mutated_synthetic mutated_memcache load_memcache test1
 
-client_LDADD = $(srcdir)/../libserver/libserver.la
-client_SOURCES = \
+mutated_synthetic_LDADD = $(srcdir)/../libserver/libserver.la
+mutated_synthetic_SOURCES = \
+    mutated_synthetic.cc \
 	accum.hh accum.cc \
 	client.hh client.cc \
 	generator.hh \
 	gen_synthetic.hh gen_synthetic.cc \
 	gen_memcache.hh gen_memcache.cc \
-	main.cc \
-	opts.hh opts.cc \
+	opts.hh opts_synthetic.cc opts_memcache.cc \
+	socket_buf.hh socket_buf.cc \
+	util.hh
+
+mutated_memcache_LDADD = $(srcdir)/../libserver/libserver.la
+mutated_memcache_SOURCES = \
+    mutated_memcache.cc \
+	accum.hh accum.cc \
+	client.hh client.cc \
+	generator.hh \
+	gen_synthetic.hh gen_synthetic.cc \
+	gen_memcache.hh gen_memcache.cc \
+	opts.hh opts_synthetic.cc opts_memcache.cc \
 	socket_buf.hh socket_buf.cc \
 	util.hh
 
@@ -20,8 +34,8 @@ client_SOURCES = \
 # as they provide an older, conflicting implementation of the Sock class. We
 # leave present though as it's still useful code.
 
-memcacheload_SOURCES = \
-    memcacheload.cc \
+load_memcache_SOURCES = \
+    load_memcache.hh load_memcache.cc \
 	socket_buf.hh socket_buf.cc \
 	util.hh
 

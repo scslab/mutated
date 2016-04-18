@@ -4,11 +4,20 @@
 #include <cstdint>
 
 /**
- * Command line parser for mutated.
+ * Options for mutated. We place all options for all supported protocols into
+ * this one struct for now and rely of different command line parsers for each
+ * protocol to populate it.
+ *
+ * TODO: Nicer, more idiomatic C++ way to compose parsers?
+ * TODO: Unify common options among protocols (no copy-paste)
  */
-class Config
-{
-  public:
+struct Config {
+    enum protocols {
+        SYNTHETIC,
+        MEMCACHE,
+    };
+    protocols protocol; /* protocol to speak */
+
     char addr[256];    /* the server address */
     uint16_t port;     /* the server port */
     const char *label; /* label describing server (-m relevant only) */
@@ -38,18 +47,43 @@ class Config
     };
     service_distributions service_dist; /* service time distribution */
 
-    enum protocols {
-        SYNTHETIC,
-        MEMCACHE,
-    };
-    protocols protocol; /* protocol to speak */
+    /* Memcache options */
+    uint64_t records; /* number of records to use */
+    uint64_t valsize; /* size of values (for sets) */
+    double setget;    /* set/get ratio */
 
     /* the remaining unparsed arguments */
     int gen_argc;
     char **gen_argv;
 
-  public:
-    Config(int argc, char *argv[]);
+    /* Set defaults */
+    Config(void)
+      : protocol{SYNTHETIC}
+      , port{0}
+      , label{"default"}
+      , service_us{0}
+      , req_s{0}
+      , warmup_seconds{5}
+      , cooldown_seconds{5}
+      , samples{0}
+      , machine_readable{false}
+      , use_epoll_spin{false}
+      , conn_mode{ROUND_ROBIN}
+      , conn_cnt{10}
+      , service_dist{EXPONENTIAL}
+      , records{10000}
+      , valsize{4 * 1024}
+      , setget{0.0}
+      , gen_argc{0}
+      , gen_argv{nullptr}
+    {
+    }
 };
+
+/* Parse command line for synthetic load generator */
+Config parse_synthetic(int argc, char *argv[]);
+
+/* Parse command line for memcache load generator */
+Config parse_memcache(int argc, char *argv[]);
 
 #endif /* MUTATED_OPTS_HH */

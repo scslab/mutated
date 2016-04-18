@@ -22,10 +22,20 @@ Loader:
 * Pull loader into own folder (core cleaning needed).
 
 Generator:
-* Perform GETs on the key-scheme loaded by the loader.
-* Support setting hit/miss ratio.
-* Support a mixed GET/SET workload.
-* Support distributions beyond fixed for hit/miss ratio and GET/SET workload.
-* SET workload should support distributions beyond fixed for choosing value
-  sizes.
+* Support setting hit/miss ratio - maybe enough to just set different key set?
+* Support distributions for schedule, key choice, and value size.
+
+Mutilate Distributions:
+* Request schedule  - fixed, uniform, normal, exponential, pareto, gev
+* Choose operation  - fixed, uniform
+* Choose key        - fixed
+* Choose key sie    - fixed, uniform, normal, exponential, pareto, gev
+* Choose value size - fixed, uniform, normal, exponential, pareto, gev
+
+Mutated Distributions:
+* Request schedule  - fixed, exponential, lognorm
+* Choose operation  - fixed, uniform
+* Choose key        - fixed
+* Choose key size   - fixed
+* Choose value size - fixed
 

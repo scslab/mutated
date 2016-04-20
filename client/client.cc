@@ -326,6 +326,7 @@ void Client::print_header(void)
 void Client::print_summary(void)
 {
     if (cfg.machine_readable) {
+	printf("%f\n", throughput);
         service_samples.print_samples();
         return;
     }

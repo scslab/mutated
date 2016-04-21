@@ -4,6 +4,7 @@ Todo notes for mutated.
 
 ## Core
 
+* Better sizing approach to buffers (charbuf and request queues).
 * Cleanup how multiple protocols are supported.
 * Pull common code out of client into own lib.
 * Should loaders be explicitly supported or out-of-band?

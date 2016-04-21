@@ -5,6 +5,7 @@
 #include <random>
 
 #include "generator.hh"
+#include "limits.hh"
 #include "memcache.hh"
 #include "opts.hh"
 #include "socket_buf.hh"
@@ -38,7 +39,6 @@ struct memreq {
 class memcache : public generator
 {
   public:
-    static constexpr std::size_t MAX_OUTSTANDING_REQS = 4096;
     using req_buffer = buffer<memreq, MAX_OUTSTANDING_REQS>;
 
   private:

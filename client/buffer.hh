@@ -13,6 +13,8 @@
 #include <system_error>
 #include <utility>
 
+#include "limits.hh"
+
 /**
  * A buffer iterator.
  *
@@ -365,8 +367,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
 };
 
 /**
- * A character buffer is a 20MB buffer storing char's.
+ * A character buffer is a 200MB buffer storing char's.
  */
-using charbuf = buffer<char, 20 * 1024 * 1024>;
+using charbuf = buffer<char, CHARBUF_SIZE>;
 
 #endif /* MUTATED_BUFFER_HH */

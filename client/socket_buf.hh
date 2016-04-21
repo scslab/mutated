@@ -14,9 +14,8 @@
 #include <functional>
 #include <utility>
 
-#include <limits.h>
-
 #include "buffer.hh"
+#include "limits.hh"
 
 class Sock;
 
@@ -67,8 +66,7 @@ class ioop
 class Sock
 {
   public:
-    /* Maximum number of outstanding read IO operations */
-    using ioqueue = buffer<ioop, 1024>;
+    using ioqueue = buffer<ioop, MAX_OUTSTANDING_REQS>;
 
   private:
     int fd_;             /* the file descriptor */

@@ -6,6 +6,7 @@
 
 #include "buffer.hh"
 #include "generator.hh"
+#include "limits.hh"
 #include "opts.hh"
 #include "socket_buf.hh"
 
@@ -38,7 +39,6 @@ struct synreq {
 class synthetic : public generator
 {
   public:
-    static constexpr std::size_t MAX_OUTSTANDING_REQS = 4096;
     using req_buffer = buffer<synreq, MAX_OUTSTANDING_REQS>;
 
   private:

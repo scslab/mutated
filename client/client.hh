@@ -5,9 +5,9 @@
 #include <memory>
 #include <vector>
 
-#include "accum.hh"
 #include "generator.hh"
 #include "opts.hh"
+#include "results.hh"
 
 /**
  * Mutated load generator.
@@ -30,9 +30,7 @@ class Client
     unsigned int epollfd;
     unsigned int timerfd;
 
-    accum service_samples;
-    accum wait_samples;
-    double throughput;
+    Results results;
 
     uint64_t sent_count, rcvd_count, measure_count;
     uint64_t pre_samples, post_samples, measure_samples, total_samples;

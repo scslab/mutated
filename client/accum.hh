@@ -10,17 +10,19 @@
 class accum
 {
   private:
-    std::vector<uint64_t> samples;
-    bool sorted;
+    std::vector<uint64_t> samples_;
+    bool sorted_;
 
   public:
     using size_type = std::vector<uint64_t>::size_type;
 
-    accum(void) noexcept : samples{}, sorted{false} {}
+    accum(void) noexcept : samples_{}, sorted_{false} {}
 
-    explicit accum(std::size_t reserve) noexcept : samples{}, sorted{false}
+    explicit accum(std::size_t reserve) noexcept : samples_{reserve}, sorted_{false}
     {
-        samples.reserve(reserve);
+        // we want to zero out the memory to ensure it's paged in, but we still
+        // want to use the push_back operator for its bounds-checking a growth.
+        samples_.resize(0);
     }
 
     ~accum(void) noexcept {}

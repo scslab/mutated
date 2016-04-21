@@ -30,9 +30,7 @@ Client::Client(Config c)
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
-  , service_samples{cfg.samples}
-  , wait_samples{cfg.samples}
-  , throughput{0}
+  , results{cfg.samples}
   , sent_count{0}
   , rcvd_count{0}
   , measure_count{0}
@@ -281,8 +279,8 @@ void Client::record_sample(generator *conn, uint64_t service_us,
 {
     if (measure) {
         measure_count++;
-        service_samples.add_sample(service_us);
-        wait_samples.add_sample(wait_us);
+        results.service().add_sample(service_us);
+        results.wait().add_sample(wait_us);
 
         // final measurement app-packet - record experiment time
         if (measure_count == measure_samples) {
@@ -292,7 +290,7 @@ void Client::record_sample(generator *conn, uint64_t service_us,
             }
             double delta_ns =
               chrono::duration_cast<duration>(exp_length).count();
-            throughput = (double)cfg.samples / (delta_ns / NSEC);
+            results.throughput() = (double)cfg.samples / (delta_ns / NSEC);
         }
     }
 
@@ -326,17 +324,17 @@ void Client::print_header(void)
 void Client::print_summary(void)
 {
     if (cfg.machine_readable) {
-	printf("%f\n", throughput);
-        service_samples.print_samples();
+	printf("%f\n", results.throughput());
+        results.service().print_samples();
         return;
     }
 
     printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
            "\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-           throughput, cfg.req_s, service_samples.min(),
-           service_samples.mean(), service_samples.stddev(),
-           service_samples.percentile(0.99), service_samples.percentile(0.999),
-           service_samples.max(), wait_samples.min(), wait_samples.mean(),
-           wait_samples.stddev(), wait_samples.percentile(0.99),
-           wait_samples.percentile(0.999), wait_samples.max());
+           results.throughput(), cfg.req_s, results.service().min(),
+           results.service().mean(), results.service().stddev(),
+           results.service().percentile(0.99), results.service().percentile(0.999),
+           results.service().max(), results.wait().min(), results.wait().mean(),
+           results.wait().stddev(), results.wait().percentile(0.99),
+           results.wait().percentile(0.999), results.wait().max());
 }

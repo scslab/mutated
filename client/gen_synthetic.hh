@@ -54,7 +54,7 @@ class synthetic : public generator
                          char *seg2, size_t m, int status);
 
   protected:
-    void _send_request(bool measure, request_cb cb) override;
+    uint64_t _send_request(bool measure, request_cb cb) override;
 
   public:
     synthetic(const Config &cfg, std::mt19937 &rand) noexcept;

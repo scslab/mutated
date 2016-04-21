@@ -66,7 +66,7 @@ class Client
     void run(void);
 
     /* Record a latency sample. */
-    void record_sample(generator *, uint64_t service_us, uint64_t wait_us,
+    void record_sample(generator *, uint64_t service_us, uint64_t wait_us, uint64_t bytes,
                        bool should_measure);
 };
 

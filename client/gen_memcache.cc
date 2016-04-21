@@ -86,10 +86,11 @@ char *memcache::choose_val(uint64_t id, uint32_t &n)
 /**
  * Generate and send a new request.
  */
-void memcache::_send_request(bool measure, request_cb cb)
+uint64_t memcache::_send_request(bool measure, request_cb cb)
 {
     uint64_t id = seqid_++;
     uint16_t keylen;
+    uint32_t vallen;
     char *key;
 
     // create our request
@@ -100,21 +101,25 @@ void memcache::_send_request(bool measure, request_cb cb)
     if (op == MemcCmd::Get) {
         sock_.write_emplace<MemcHeader>(MemcType::Request, op, 0, keylen, 0);
         sock_.write(key, keylen);
+        vallen = 0;
     } else {
         sock_.write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), keylen, cfg_.valsize);
         sock_.write_emplace<MemcExtrasSet>();
         sock_.write(key, keylen);
 
         // just write random bytes for the value
-        size_t vn = cfg_.valsize;
+        vallen = cfg_.valsize;
+        size_t vn = vallen;
         sock_.write_prepare(vn);
-        sock_.write_commit(cfg_.valsize);
+        sock_.write_commit(vallen);
     }
 
     // add response to read queue
     memreq &req = requests_.queue_emplace(op, measure, cb);
     ioop io(MemcHeader::SIZE, cb_, 0, nullptr, &req);
     sock_.read(io);
+
+    return MemcHeader::SIZE + keylen + vallen;
 }
 
 /**
@@ -126,16 +131,14 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     if (&sock_ != s) { // ensure right callback
         throw runtime_error(
           "memcache::recv_response: wrong socket in callback");
-    }
-
-    if (status != 0) { // just delete on error
+    } else if (status != 0) { // just delete on error
         requests_.drop(1);
         return 0;
     } else if (n + m != MemcHeader::SIZE) { // ensure valid packet
         throw runtime_error("memcache::recv_response: unexpected packet size");
     }
 
-    // record measurement
+    // calculate measurement
     const memreq &req = requests_.dequeue_one();
     if (data != &req) {
         throw runtime_error(
@@ -149,7 +152,6 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     }
     uint64_t service_us =
       chrono::duration_cast<generator::duration>(delta).count();
-    req.cb(this, service_us, 0, req.measure);
 
     // parse packet - need to drop body
     uint32_t bodylen = 0;
@@ -164,6 +166,9 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
             bodylen = ntohl(hdr.bodylen);
         }
     }
+
+    // record result
+    req.cb(this, service_us, 0, MemcHeader::SIZE + bodylen, req.measure);
 
     return bodylen;
 }

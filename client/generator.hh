@@ -27,14 +27,14 @@ class generator
     using time_point = clock::time_point;
     using duration = std::chrono::microseconds;
     using request_cb =
-      std::function<void(generator *, uint64_t, uint64_t, bool)>;
+      std::function<void(generator *, uint64_t, uint64_t, uint64_t, bool)>;
 
   protected:
     int ref_cnt_;
     Sock sock_;
 
     /* Generate requests - internal. */
-    virtual void _send_request(bool measure, request_cb cb) = 0;
+    virtual uint64_t _send_request(bool measure, request_cb cb) = 0;
 
   public:
     generator(void) noexcept : ref_cnt_{1}, sock_{} {}
@@ -60,11 +60,12 @@ class generator
     }
 
     /* Generate requests */
-    void send_request(bool measure, request_cb cb)
+    uint64_t send_request(bool measure, request_cb cb)
     {
         get();
-        _send_request(measure, cb);
+        uint64_t bytes = _send_request(measure, cb);
         put();
+        return bytes;
     }
 
     /* Access underlying file descriptor */

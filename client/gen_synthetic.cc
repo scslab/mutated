@@ -44,7 +44,7 @@ uint64_t synthetic::gen_service_time(void)
 /**
  * Generate and send a new request.
  */
-void synthetic::_send_request(bool measure, request_cb cb)
+uint64_t synthetic::_send_request(bool measure, request_cb cb)
 {
     // create our synreq
     synreq &req = requests.queue_emplace(measure, cb, gen_service_time());
@@ -70,6 +70,8 @@ void synthetic::_send_request(bool measure, request_cb cb)
     // add response to read queue
     ioop io(sizeof(resp_pkt), cb_, 0, nullptr, &req);
     sock_.read(io);
+
+    return n;
 }
 
 /**
@@ -114,7 +116,7 @@ size_t synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
     } else {
         wait_us = 0;
     }
-    req.cb(this, service_us, wait_us, req.measure);
+    req.cb(this, service_us, wait_us, sizeof(resp_pkt), req.measure);
 
     // no body, only a header
     return 0;

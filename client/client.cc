@@ -23,7 +23,7 @@ Client::Client(Config c)
   , rd{}
   , randgen{rd()}
   , conn_dist{0, (int)cfg.conn_cnt - 1}
-  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4)}
+  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4, _5)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
@@ -264,19 +264,21 @@ void Client::send_request(void)
     // gen is reference counted (get/put, starts at 1) and we'll deallocate it
     // in `record_sample`.
     generator *gen = get_connection();
-    gen->send_request(measure, gen_cb);
+    uint64_t bytes = gen->send_request(measure, gen_cb);
+    if (measure) {
+        results.sent_bytes(bytes);
+    }
 }
 
 /**
  * Record a latency sample.
  */
 void Client::record_sample(generator *conn, uint64_t service_us,
-                           uint64_t wait_us, bool measure)
+                           uint64_t wait_us, uint64_t bytes, bool measure)
 {
     if (measure) {
         measure_count++;
-        results.service().add_sample(service_us);
-        results.wait().add_sample(wait_us);
+        results.add_sample(service_us, wait_us, bytes);
 
         // final measurement app-packet - record experiment time
         if (measure_count == measure_samples) {
@@ -300,9 +302,19 @@ void Client::record_sample(generator *conn, uint64_t service_us,
  */
 void Client::print_header(void)
 {
-    if (!cfg.machine_readable) {
-        cout << "#reqs/s\t\t(ideal)\t\tmin\tavg\t\tstd\t\t99th\t99.9th"
-                "\tmax\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+    if (cfg.protocol == Config::MEMCACHE) {
+        if (!cfg.machine_readable) {
+            cout << "#reqs/s\t\t(ideal)\t"
+                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+                 << endl;
+        }
+    } else {
+        if (!cfg.machine_readable) {
+            cout << "#reqs/s\t\t(ideal)\t"
+                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
+                 << endl;
+        }
     }
 }
 
@@ -314,17 +326,36 @@ void Client::print_header(void)
 void Client::print_summary(void)
 {
     if (cfg.machine_readable) {
-	printf("%f\n", results.throughput());
+        printf("%f\n", results.reqps());
         results.service().print_samples();
         return;
     }
 
-    printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
-           "\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-           results.throughput(), cfg.req_s, results.service().min(),
-           results.service().mean(), results.service().stddev(),
-           results.service().percentile(0.99), results.service().percentile(0.999),
-           results.service().max(), results.wait().min(), results.wait().mean(),
-           results.wait().stddev(), results.wait().percentile(0.99),
-           results.wait().percentile(0.999), results.wait().max());
+    if (cfg.protocol == Config::MEMCACHE) {
+        printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+               "\n",
+               results.reqps(), cfg.req_s,
+               results.service().min(), results.service().mean(),
+               results.service().stddev(), results.service().percentile(0.99),
+               results.service().percentile(0.999), results.service().max());
+    } else {
+        printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+               "\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
+               results.reqps(), cfg.req_s,
+               results.service().min(), results.service().mean(),
+               results.service().stddev(), results.service().percentile(0.99),
+               results.service().percentile(0.999), results.service().max(),
+               results.wait().min(), results.wait().mean(),
+               results.wait().stddev(), results.wait().percentile(0.99),
+               results.wait().percentile(0.999), results.wait().max());
+    }
+
+    constexpr uint64_t MB = 1024 * 1024;
+    double time_s = results.running_time() / NSEC;
+    double rx_mbs = double(results.rx_bytes()) / MB;
+    double tx_mbs = double(results.tx_bytes()) / MB;
+
+    printf("\n");
+    printf("RX: %.2f MB/s (%.2f MB)\n", rx_mbs / time_s, rx_mbs);
+    printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
 }

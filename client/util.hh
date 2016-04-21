@@ -8,6 +8,9 @@
 #include <string>
 #include <system_error>
 
+/* Nanoseconds in a second. */
+static constexpr double NSEC = 1000000000;
+
 #define UNUSED(x) ((void)(x))
 
 inline unsigned int SystemCall(int status, const char *fail, int code = 0)

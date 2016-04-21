@@ -15,9 +15,6 @@
 using namespace std;
 using namespace std::placeholders;
 
-/* Nanoseconds in a second. */
-static constexpr double NSEC = 1000000000;
-
 /**
  * Create a new client.
  */
@@ -39,7 +36,6 @@ Client::Client(Config c)
   , measure_samples{0}
   , total_samples{0}
   , exp_start_time{}
-  , measure_start_time{}
   , deadlines{}
   , conns{}
 {
@@ -258,7 +254,7 @@ void Client::timer_handler(void)
 void Client::send_request(void)
 {
     if (sent_count == pre_samples) {
-        measure_start_time = clock::now();
+        results.start_measurements();
     }
 
     // in measure phase? (not warm up or down)
@@ -284,13 +280,7 @@ void Client::record_sample(generator *conn, uint64_t service_us,
 
         // final measurement app-packet - record experiment time
         if (measure_count == measure_samples) {
-            auto exp_length = clock::now() - measure_start_time;
-            if (exp_length < clock::duration(0)) {
-                throw runtime_error("experiment finished before it started");
-            }
-            double delta_ns =
-              chrono::duration_cast<duration>(exp_length).count();
-            results.throughput() = (double)cfg.samples / (delta_ns / NSEC);
+            results.end_measurements();
         }
     }
 

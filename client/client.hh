@@ -36,7 +36,6 @@ class Client
     uint64_t pre_samples, post_samples, measure_samples, total_samples;
 
     time_point exp_start_time;
-    time_point measure_start_time;
     std::vector<duration> deadlines;
 
     std::vector<generator *> conns;

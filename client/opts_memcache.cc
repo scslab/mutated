@@ -36,7 +36,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -e    : use Shinjuku's epoll_spin() system call" << endl;
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
-    cerr << "  -s INT: measurement sample count (default: 10s worth)" << endl;
+    cerr << "  -s INT: measurement seconds (default: 10s)" << endl;
     cerr << "  -l STR: label for machine-readable output (-r)" << endl;
     cerr << "  -m OPT: connection mode (default: round_robin)" << endl;
     cerr << "  -d OPT: service time distribution (default: exponential)"
@@ -143,9 +143,12 @@ Config parse_memcache(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
+    // convert from sample seconds to sample count
     if (cfg.samples == 0) {
-        cfg.samples = cfg.req_s * DEFAULT_SAMPLE_S;
+        cfg.samples = DEFAULT_SAMPLE_S;
     }
+    cfg.samples *= cfg.req_s;
+
     cfg.gen_argc = argc - optind - FIXED_ARGS;
     cfg.gen_argv = &argv[cfg.gen_argc];
 

@@ -37,6 +37,8 @@ Client::Client(Config c)
   , total_samples{0}
   , exp_start_time{}
   , deadlines{}
+  , missed_threshold{cfg.missed_window_us * 1000}
+  , missed_send_window{0}
   , conns{}
 {
     epoll_watch(timerfd, NULL, EPOLLIN);
@@ -132,7 +134,6 @@ void Client::run(void)
 
 void Client::setup_experiment(void)
 {
-    sent_count = rcvd_count = measure_count = 0;
     setup_connections();
     setup_deadlines();
     exp_start_time = clock::now();
@@ -236,13 +237,19 @@ void Client::timer_handler(void)
     duration now_relative =
       chrono::duration_cast<duration>(now_time - exp_start_time);
 
+    uint64_t looped = 0;
     duration sleep_duration;
     while (true) {
         sleep_duration = deadlines[sent_count] - now_relative;
         if (sleep_duration > duration(0)) {
             timer_arm(sleep_duration);
             return;
+        } else if (looped > 0 and sleep_duration < missed_threshold) {
+            // Missed timer! Client appears to be overloaded...
+            // TODO: Best way to detect and record?
+            missed_send_window++;
         }
+        looped++;
         send_request();
         sent_count++;
         if (sent_count >= total_samples) {
@@ -358,4 +365,5 @@ void Client::print_summary(void)
     printf("\n");
     printf("RX: %.2f MB/s (%.2f MB)\n", rx_mbs / time_s, rx_mbs);
     printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
+    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_window, sent_count, double(missed_send_window) / sent_count * 100);
 }

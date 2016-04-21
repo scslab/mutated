@@ -37,6 +37,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
     cerr << "  -s INT: measurement seconds (default: 10s)" << endl;
+    cerr << "  -W INT: missed send threshold microseconds (default: 100us)"
+         << endl;
     cerr << "  -l STR: label for machine-readable output (-r)" << endl;
     cerr << "  -m OPT: connection mode (default: round_robin)" << endl;
     cerr << "  -d OPT: service time distribution (default: exponential)"
@@ -69,7 +71,7 @@ Config parse_memcache(int argc, char *argv[])
     // unused options
     cfg.service_us = 0;
 
-    while ((c = getopt(argc, argv, "hrew:s:c:l:m:d:n:k:v:u:")) != -1) {
+    while ((c = getopt(argc, argv, "hrew:s:c:W:l:m:d:n:k:v:u:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -87,6 +89,9 @@ Config parse_memcache(int argc, char *argv[])
             break;
         case 'c':
             cfg.cooldown_seconds = atoi(optarg);
+            break;
+        case 'W':
+            cfg.missed_window_us = atoll(optarg);
             break;
         case 'l':
             cfg.label = optarg;

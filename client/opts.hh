@@ -47,6 +47,8 @@ struct Config {
     };
     service_distributions service_dist; /* service time distribution */
 
+    uint64_t missed_window_us; /* packet late send threshold */
+
     /* Memcache options */
     uint64_t records; /* number of records to use */
     uint64_t valsize; /* size of values (for sets) */
@@ -71,6 +73,7 @@ struct Config {
       , conn_mode{ROUND_ROBIN}
       , conn_cnt{10}
       , service_dist{EXPONENTIAL}
+      , missed_window_us{100}
       , records{10000}
       , valsize{4 * 1024}
       , setget{0.0}

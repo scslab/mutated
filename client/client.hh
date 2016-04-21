@@ -37,6 +37,8 @@ class Client
 
     time_point exp_start_time;
     std::vector<duration> deadlines;
+    duration missed_threshold;
+    uint64_t missed_send_window;
 
     std::vector<generator *> conns;
 

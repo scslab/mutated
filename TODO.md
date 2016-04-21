@@ -9,6 +9,8 @@ Todo notes for mutated.
 * Should loaders be explicitly supported or out-of-band?
 * Support varying (how to specify?) workload intensity (i.e., not a constant
   req/s rate).
+* Should the rx loop be run till blocking? Or is their a live-lock issue with
+  this approach?
 
 ## Cross-OS
 

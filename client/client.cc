@@ -37,7 +37,7 @@ Client::Client(Config c)
   , total_samples{0}
   , exp_start_time{}
   , deadlines{}
-  , missed_threshold{cfg.missed_window_us * 1000}
+  , missed_threshold{-cfg.missed_window_us * 1000}
   , missed_send_window{0}
   , conns{}
 {

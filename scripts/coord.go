@@ -31,15 +31,30 @@ type cfg struct {
 	serviceTime uint
 }
 
-func divCfg(in *cfg, cnt uint) (split, resid *cfg) {
-	split = &cfg{in.samples / cnt, in.reqsPerSec / cnt, in.conns / cnt,
-		in.timePad, in.mode, in.dist, in.host, in.serviceTime}
+func divCfg(c *cfg, cnt uint) []*cfg {
+	split := &cfg{c.samples / cnt, c.reqsPerSec / cnt, c.conns / cnt,
+		      c.timePad, c.mode, c.dist, c.host, c.serviceTime}
 
-	resid = &cfg{in.samples/cnt + in.samples%cnt,
-		in.reqsPerSec/cnt + in.reqsPerSec%cnt,
-		in.conns/cnt + in.conns%cnt,
-		in.timePad, in.mode, in.dist, in.host, in.serviceTime}
-	return
+	cfgs := make([]*cfg, cnt)
+
+	for i := range cfgs {
+		cfgs[i] = new(cfg)
+		*cfgs[i] = *split
+
+		if i < int(c.samples%cnt) {
+			cfgs[i].samples++
+		}
+
+		if i < int(c.reqsPerSec%cnt) {
+			cfgs[i].reqsPerSec++
+		}
+
+		if i < int(c.conns%cnt) {
+			cfgs[i].conns++
+		}
+	}
+
+	return cfgs
 }
 
 type result struct {
@@ -143,21 +158,15 @@ func measureOne(c *cfg, host string, cmd string) (*result, error) {
 func measure(c *cfg, host string, cmd string, cnt uint) *result {
 	r := NewResult(0)
 	cResult := make(chan *result)
-	split, resid := divCfg(c, cnt)
+	dCfg := divCfg(c, cnt)
 
-	for i := uint(0); i < cnt-1; i++ {
+	for _, v := range dCfg {
 		go func() {
-			part, err := measureOne(split, host, cmd)
+			part, err := measureOne(v, host, cmd)
 			checkError(err)
 			cResult <- part
 		}()
 	}
-
-	go func() {
-		part, err := measureOne(resid, host, cmd)
-		checkError(err)
-		cResult <- part
-	}()
 
 	for i := uint(0); i < cnt; i++ {
 		part := <-cResult

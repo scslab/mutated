@@ -42,15 +42,15 @@ func divCfg(c *cfg, cnt uint) []*cfg {
 		*cfgs[i] = *split
 
 		if i < int(c.samples%cnt) {
-			cfgs[i].samples++
+			cfgs[i].samples += 1
 		}
 
 		if i < int(c.reqsPerSec%cnt) {
-			cfgs[i].reqsPerSec++
+			cfgs[i].reqsPerSec += 1
 		}
 
 		if i < int(c.conns%cnt) {
-			cfgs[i].conns++
+			cfgs[i].conns += 1
 		}
 	}
 
@@ -161,11 +161,11 @@ func measure(c *cfg, host string, cmd string, cnt uint) *result {
 	dCfg := divCfg(c, cnt)
 
 	for _, v := range dCfg {
-		go func() {
+		go func(v *cfg) {
 			part, err := measureOne(v, host, cmd)
 			checkError(err)
 			cResult <- part
-		}()
+		}(v)
 	}
 
 	for i := uint(0); i < cnt; i++ {
@@ -177,7 +177,7 @@ func measure(c *cfg, host string, cmd string, cnt uint) *result {
 }
 
 func warmup(c *cfg, host string, cmd string) error {
-	wc := &cfg{100, 100, 1, 1, "round_robin", "exp", c.host, 1}
+	wc := &cfg{100, 100, 1, 3, "round_robin", "exp", c.host, 1}
 
 	_, err := measureOne(wc, host, cmd)
 	return err

@@ -215,40 +215,42 @@ void Sock::read(const ioop &op)
  */
 void Sock::tx(void)
 {
-    // is anything pending for send?
-    if (wbuf.items() == 0) {
-        return;
-    }
-
-    ssize_t nbytes;
-    size_t n = wbuf.items(), n1 = n;
-    auto wptrs = wbuf.peek(n1);
-
-    if (wptrs.second == nullptr) {
-        // no wrapping, normal write
-        nbytes = ::write(fd_, wptrs.first, n);
-    } else {
-        // need to wrap, so use writev
-        iovec iov[2];
-        iov[0].iov_base = wptrs.first;
-        iov[0].iov_len = n1;
-        iov[1].iov_base = wptrs.second;
-        iov[1].iov_len = n - n1;
-        nbytes = ::writev(fd_, iov, 2);
-    }
-
-    if (nbytes < 0) {
-        if (errno == EAGAIN) {
-            tx_rdy = false;
+    while (true) {
+        // is anything pending for send?
+        if (wbuf.items() == 0) {
             return;
-        } else {
-            throw system_error(errno, system_category(),
-                               "Sock::tx: write error");
         }
-    } else if (size_t(nbytes) > n) {
-        throw runtime_error("Sock::tx: write sent more bytes than asked");
+
+        ssize_t nbytes;
+        size_t n = wbuf.items(), n1 = n;
+        auto wptrs = wbuf.peek(n1);
+
+        if (wptrs.second == nullptr) {
+            // no wrapping, normal write
+            nbytes = ::write(fd_, wptrs.first, n);
+        } else {
+            // need to wrap, so use writev
+            iovec iov[2];
+            iov[0].iov_base = wptrs.first;
+            iov[0].iov_len = n1;
+            iov[1].iov_base = wptrs.second;
+            iov[1].iov_len = n - n1;
+            nbytes = ::writev(fd_, iov, 2);
+        }
+
+        if (nbytes < 0) {
+            if (errno == EAGAIN) {
+                tx_rdy = false;
+                return;
+            } else {
+                throw system_error(errno, system_category(),
+                                   "Sock::tx: write error");
+            }
+        } else if (size_t(nbytes) > n) {
+            throw runtime_error("Sock::tx: write sent more bytes than asked");
+        }
+        wbuf.drop(nbytes);
     }
-    wbuf.drop(nbytes);
 }
 
 /**

@@ -104,7 +104,7 @@ git submodule update --init
 make
 ```
 
-It requires a recent C++11 compiler (GCC or Clang should both work) and has
+It requires a recent C++14 compiler (GCC or Clang should both work) and has
 only been tested on Linux. Support for BSD's should be possible, but will
 require abstracting the epoll implementation.
 

@@ -87,7 +87,7 @@ class buffer_iterator
     {
         buffer_iterator tmp(*this);
         if (ptr_ == span2_start_) {
-            ptr_ = (pointer) span1_end_;
+            ptr_ = (pointer)span1_end_;
         }
         ptr_--;
         return tmp;
@@ -99,7 +99,10 @@ class buffer_iterator
                span2_start_ == bi.span2_start_;
     }
 
-    bool operator!=(const buffer_iterator &bi) const noexcept { return !(*this == bi); }
+    bool operator!=(const buffer_iterator &bi) const noexcept
+    {
+        return !(*this == bi);
+    }
 };
 
 /**

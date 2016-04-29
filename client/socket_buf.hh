@@ -35,20 +35,19 @@ class ioop_rx
     void *cbdata;
 
     ioop_rx(void) noexcept : hdrlen{0},
-                          hdrcb{},
-                          bodylen{0},
-                          bodycb{},
-                          cbdata{nullptr}
+                             hdrcb{},
+                             bodylen{0},
+                             bodycb{},
+                             cbdata{nullptr}
     {
     }
 
     ioop_rx(size_t hdrlen_, ioop_cb hdrcb_, size_t bodylen_, ioop_cb bodycb_,
-         void *cbdata_) noexcept
-      : hdrlen{hdrlen_}
-      , hdrcb{hdrcb_}
-      , bodylen{bodylen_}
-      , bodycb{bodycb_}
-      , cbdata{cbdata_}
+            void *cbdata_) noexcept : hdrlen{hdrlen_},
+                                      hdrcb{hdrcb_},
+                                      bodylen{bodylen_},
+                                      bodycb{bodycb_},
+                                      cbdata{cbdata_}
     {
     }
 
@@ -69,14 +68,11 @@ class ioop_tx
     ioop_cb cb;
     void *cbdata;
 
-    ioop_tx(void) noexcept : len{0}, cb{}, cbdata{nullptr}
-    {
-    }
+    ioop_tx(void) noexcept : len{0}, cb{}, cbdata{nullptr} {}
 
-    ioop_tx(size_t len_, ioop_cb cb_, void *cbdata_) noexcept
-      : len{len_}
-      , cb{cb_}
-      , cbdata{cbdata_}
+    ioop_tx(size_t len_, ioop_cb cb_, void *cbdata_) noexcept : len{len_},
+                                                                cb{cb_},
+                                                                cbdata{cbdata_}
     {
     }
 
@@ -133,7 +129,7 @@ class Sock
     void connect(const char *addr, unsigned short port);
 
     /* Read queueing */
-    void read(const ioop_rx & io);
+    void read(const ioop_rx &io);
 
     /* Write queueing preparation */
     std::pair<char *, char *> write_prepare(size_t &len);
@@ -143,17 +139,17 @@ class Sock
     void write(const void *data, const size_t len);
 
     /* Write by constructing in-place */
-    template<class T, class... Args>
-    void write_emplace(Args &&... args)
+    template <class T, class... Args> void write_emplace(Args &&... args)
     {
         std::size_t n = sizeof(T), n1 = n;
         auto p = write_prepare(n1);
         if (p.second == nullptr) {
-            ::new (static_cast<void *>(p.first)) T(std::forward<Args>(args)...);
+            ::new (static_cast<void *>(p.first))
+              T(std::forward<Args>(args)...);
         } else {
             T t(std::forward<Args>(args)...);
             memcpy(p.first, &t, n1);
-            memcpy(p.second, &t+n1, n - n1);
+            memcpy(p.second, &t + n1, n - n1);
         }
         write_commit(n);
     }

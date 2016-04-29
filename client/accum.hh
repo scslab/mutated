@@ -18,7 +18,8 @@ class accum
 
     accum(void) noexcept : samples_{}, sorted_{false} {}
 
-    explicit accum(std::size_t reserve) noexcept : samples_{reserve}, sorted_{false}
+    explicit accum(std::size_t reserve) noexcept : samples_{reserve},
+                                                   sorted_{false}
     {
         // we want to zero out the memory to ensure it's paged in, but we still
         // want to use the push_back operator for its bounds-checking a growth.

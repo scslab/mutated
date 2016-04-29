@@ -277,8 +277,9 @@ void Client::send_request(void)
 /**
  * Record a latency sample.
  */
-void Client::record_sample(generator *conn, uint64_t queue_us, uint64_t service_us,
-                           uint64_t wait_us, uint64_t bytes, bool measure)
+void Client::record_sample(generator *conn, uint64_t queue_us,
+                           uint64_t service_us, uint64_t wait_us,
+                           uint64_t bytes, bool measure)
 {
     if (measure) {
         measure_count++;
@@ -334,8 +335,8 @@ void Client::print_summary(void)
     if (cfg.protocol == Config::SYNTHETIC) {
         cout << endl;
         cout << "   wait: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
-        printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
-               "\n",
+        printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64
+               "\t%" PRIu64 "\n",
                results.wait().min(), results.wait().mean(),
                results.wait().stddev(), results.wait().percentile(0.99),
                results.wait().percentile(0.999), results.wait().max());
@@ -349,5 +350,6 @@ void Client::print_summary(void)
     printf("\n");
     printf("RX: %.2f MB/s (%.2f MB)\n", rx_mbs / time_s, rx_mbs);
     printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
-    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_window, sent_count, double(missed_send_window) / sent_count * 100);
+    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_window,
+           sent_count, double(missed_send_window) / sent_count * 100);
 }

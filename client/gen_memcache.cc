@@ -104,7 +104,8 @@ uint64_t memcache::_send_request(bool measure, request_cb cb)
         sock_.write(key, keylen);
         bodlen = keylen;
     } else {
-        sock_.write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), keylen, cfg_.valsize);
+        sock_.write_emplace<MemcHeader>(
+          MemcType::Request, op, sizeof(MemcExtrasSet), keylen, cfg_.valsize);
         sock_.write_emplace<MemcExtrasSet>();
         sock_.write(key, keylen);
 
@@ -143,7 +144,7 @@ void memcache::sent_request(Sock *s, void *data, int status)
     }
 
     // add in sent timestamp to packet
-    memreq *req = (memreq *) data;
+    memreq *req = (memreq *)data;
     req->sent_ts = generator::clock::now();
 }
 
@@ -204,7 +205,8 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     }
 
     // record result
-    req.cb(this, queue_us, service_us, 0, MemcHeader::SIZE + bodylen, req.measure);
+    req.cb(this, queue_us, service_us, 0, MemcHeader::SIZE + bodylen,
+           req.measure);
 
     return bodylen;
 }

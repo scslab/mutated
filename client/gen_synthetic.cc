@@ -95,7 +95,7 @@ void synthetic::sent_request(Sock *s, void *data, int status)
     }
 
     // add in sent timestamp to packet
-    synreq *req = (synreq *) data;
+    synreq *req = (synreq *)data;
     req->sent_ts = generator::clock::now();
 }
 

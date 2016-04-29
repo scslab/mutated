@@ -28,8 +28,7 @@ static constexpr size_t FIXED_ARGS = 1;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl
-             << endl;
+        cerr << "invalid arguments!" << endl << endl;
     }
 
     cerr << "Usage: " << prog << " [options] <ip:port>" << endl;
@@ -41,7 +40,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -n INT: starting key sequence number (default: 1)" << endl;
     cerr << "  -b INT: load batch size to use (default: 100)" << endl;
     cerr << "  -e INT: ask server to notify every INT sets of success "
-            "(default: 25)" << endl;
+            "(default: 25)"
+         << endl;
 
     exit(status);
 }
@@ -214,7 +214,8 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 
     // add request to wire
     MemcCmd op = quiet ? MemcCmd::Setq : MemcCmd::Set;
-    sock_->write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), KEYSIZE, valsize_);
+    sock_->write_emplace<MemcHeader>(MemcType::Request, op,
+                                     sizeof(MemcExtrasSet), KEYSIZE, valsize_);
     sock_->write_emplace<MemcExtrasSet>();
     sock_->write(key, KEYSIZE);
     sock_->write(val, valsize_);

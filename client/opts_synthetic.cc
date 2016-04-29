@@ -24,8 +24,7 @@ static constexpr uint64_t DEFAULT_SAMPLE_S = 10;
 static void __printUsage(string prog, int status = EXIT_FAILURE)
 {
     if (status != EXIT_SUCCESS) {
-        cerr << "invalid arguments!" << endl
-             << endl;
+        cerr << "invalid arguments!" << endl << endl;
     }
 
     cerr << "Usage: " << prog << " [options] "
@@ -45,7 +44,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -d OPT: service time distribution (default: exponential)"
          << endl;
     cerr << "  -n INT: number of connections to open (round robin/random "
-            "mode)" << endl;
+            "mode)"
+         << endl;
     cerr << endl;
     cerr << "  connection modes: per_request, round_robin, random" << endl;
     cerr << "  service distribution: fixed, exp, lognorm" << endl;

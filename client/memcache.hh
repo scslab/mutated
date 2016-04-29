@@ -87,18 +87,21 @@ struct MemcHeader {
     uint32_t opaque;   // field associated with key-value controlable by user
     uint64_t version;  // version of key-value pair
 
-    MemcHeader(void) noexcept : MemcHeader(MemcType::Request, MemcCmd::Get, 0, 0, 0) {}
+    MemcHeader(void) noexcept
+      : MemcHeader(MemcType::Request, MemcCmd::Get, 0, 0, 0)
+    {
+    }
 
-    MemcHeader(MemcType t, MemcCmd c, uint8_t el, uint16_t kl, uint32_t vl) noexcept
-        : type{t},
-          cmd{c},
-          keylen{kl},
-          extralen{el},
-          datatype{0},
-          status{MemcStatus::OK},
-          bodylen{el + kl + vl},
-          opaque{0},
-          version{0}
+    MemcHeader(MemcType t, MemcCmd c, uint8_t el, uint16_t kl,
+               uint32_t vl) noexcept : type{t},
+                                       cmd{c},
+                                       keylen{kl},
+                                       extralen{el},
+                                       datatype{0},
+                                       status{MemcStatus::OK},
+                                       bodylen{el + kl + vl},
+                                       opaque{0},
+                                       version{0}
     {
         hton();
     }

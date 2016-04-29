@@ -157,9 +157,11 @@ void Sock::rx(void)
             rx_rdy = false;
             return;
         } else if (nbytes <= 0) {
-            throw system_error(errno, system_category(), "Sock::rx: readv error");
+            throw system_error(errno, system_category(),
+                               "Sock::rx: readv error");
         } else if (size_t(nbytes) > n) {
-            throw runtime_error("Sock::rx: read returned more bytes than asked");
+            throw runtime_error(
+              "Sock::rx: read returned more bytes than asked");
         }
         rbuf.queue_commit(nbytes);
 
@@ -178,8 +180,8 @@ void Sock::rx(void)
                     n = n1 = rxcb.hdrlen;
                     rptrs = rbuf.peek(n1);
                     // parse header and set body length from it
-                    rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first, n1,
-                                              rptrs.second, n - n1, 0);
+                    rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first,
+                                              n1, rptrs.second, n - n1, 0);
                 }
                 rbuf.drop(rxcb.hdrlen);
                 rxcb.hdrlen = 0; // mark header done
@@ -197,8 +199,8 @@ void Sock::rx(void)
                 if (rxcb.bodycb) {
                     n = n1 = rxcb.bodylen;
                     rptrs = rbuf.peek(n1);
-                    rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1, rptrs.second,
-                                n - n1, 0);
+                    rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1,
+                                rptrs.second, n - n1, 0);
                 }
                 rbuf.drop(rxcb.bodylen);
                 rxcb.bodylen = 0; // mark body done
@@ -302,10 +304,7 @@ pair<char *, char *> Sock::write_prepare(size_t &len)
  * transmission.
  * @len: the length of previously prepared write to commit.
  */
-void Sock::write_commit(const size_t len)
-{
-    wbuf.queue_commit(len);
-}
+void Sock::write_commit(const size_t len) { wbuf.queue_commit(len); }
 
 /**
  * Copy len bytes from data to the socket tx queue for transmission.

@@ -25,12 +25,11 @@ struct memreq {
 
     memreq(void) noexcept : memreq(MemcCmd::Get, false, nullptr) {}
 
-    memreq(MemcCmd o, bool m, request_cb c) noexcept
-      : op{o},
-        measure{m},
-        cb{c},
-        start_ts{},
-        sent_ts{}
+    memreq(MemcCmd o, bool m, request_cb c) noexcept : op{o},
+                                                       measure{m},
+                                                       cb{c},
+                                                       start_ts{},
+                                                       sent_ts{}
     {
     }
 };

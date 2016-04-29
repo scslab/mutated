@@ -173,11 +173,19 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
 
     // client-side queue time
     auto delta = req.sent_ts - req.start_ts;
+    if (delta <= generator::duration(0)) {
+        throw std::runtime_error(
+          "memcache::recv_response: sent before it was generated");
+    }
     uint64_t queue_us =
       chrono::duration_cast<generator::duration>(delta).count();
 
     // service time
     delta = now - req.start_ts;
+    if (delta <= generator::duration(0)) {
+        throw std::runtime_error(
+          "memcache::recv_response: arrived before it was sent");
+    }
     uint64_t service_us =
       chrono::duration_cast<generator::duration>(delta).count();
 

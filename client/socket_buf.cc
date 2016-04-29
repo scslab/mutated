@@ -161,6 +161,7 @@ void Sock::rx(void)
         }
         rbuf.queue_commit(nbytes);
 
+        size_t drop = 0;
         for (auto &rxcb : rxcbs) {
             if (rxcb.hdrlen > 0) {
                 if (rbuf.items() < rxcb.hdrlen) {
@@ -201,8 +202,11 @@ void Sock::rx(void)
                 rxcb.bodylen = 0; // mark body done
             }
 
-            rxcbs.drop(1); // app-packet done
+            drop++;
         }
+
+        // drop done packets
+        rxcbs.drop(drop);
     }
 }
 
@@ -261,16 +265,18 @@ void Sock::tx(void)
         wbuf.drop(nbytes);
 
         // update tx callbacks
+        size_t drop = 0;
         for (auto &txcb : txcbs) {
             if (txcb.len > size_t(nbytes)) {
                 txcb.len -= nbytes;
                 break;
             } else {
                 txcb.cb(this, txcb.cbdata, 0);
-                txcbs.drop(1);
                 nbytes -= txcb.len;
+                drop++;
             }
         }
+        txcbs.drop(drop);
     }
 }
 

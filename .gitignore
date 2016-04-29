@@ -13,6 +13,12 @@ Makefile.in
 
 # tool files
 cppcheck.err
+cscope.out
+cscope.files
+cscope.in.out
+cscope.po.out
+TAGS
+tags
 
 # build files (just root)
 aclocal.m4
@@ -47,9 +53,3 @@ test-suite.log
 
 # Editor files
 .ycm_extra_conf.py*
-cscope.out
-cscope.files
-cscope.in.out
-cscope.po.out
-TAGS
-tags

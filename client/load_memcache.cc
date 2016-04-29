@@ -175,8 +175,7 @@ void MemcacheLoad::run(void)
     while (true) {
         while (sent_ < toload_ and onwire_ < batch_) {
             bool loud = ((sent_ + 1) % notify_) == 0 or sent_ == (toload_ - 1);
-            send_request(seqid_++,
-                         not loud); // we pre-increment to start keys at 1
+            send_request(seqid_++, not loud);
             sent_++;
             onwire_++;
         }

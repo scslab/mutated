@@ -119,8 +119,6 @@ void Client::run(void)
 
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
-
-            // is it a timer?
             if (ev.data.ptr == nullptr) {
                 timer_handler();
             } else {

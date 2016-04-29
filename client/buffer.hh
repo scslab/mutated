@@ -258,7 +258,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
         if (tail_ == buf_) {
             return buf_ + BUFSZ - 1;
         } else {
-            return --tail_;
+            return tail_ - 1;
         }
     }
 

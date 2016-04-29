@@ -17,8 +17,7 @@ class Sock;
 /**
  * A vector IO operation (data segment).
  */
-struct VIO
-{
+struct VIO {
     using complete_cb = std::function<void(Sock *, void *, int)>;
 
     char *buf;
@@ -60,8 +59,8 @@ class Sock
     /* Maximum number of outstanding vector IO operations */
     static constexpr size_t MAX_SGS = IOV_MAX;
 
-    int ref_cnt_; /* the reference count */
-    int fd_;     /* the file descriptor */
+    int ref_cnt_;      /* the reference count */
+    int fd_;           /* the file descriptor */
     bool connected_;   /* is the socket connected? */
     bool rx_rdy_;      /* ready to read? */
     bool tx_rdy_;      /* ready to write? */

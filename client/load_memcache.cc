@@ -160,7 +160,7 @@ void MemcacheLoad::epoll_watch(int fd, void *data, uint32_t events)
     ev.events = events | EPOLLET;
     ev.data.ptr = data;
     system_call(epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ev),
-               "MemcacheLoad::epoll_watch: epoll_ctl()");
+                "MemcacheLoad::epoll_watch: epoll_ctl()");
 }
 
 /**
@@ -184,7 +184,7 @@ void MemcacheLoad::run(void)
         }
 
         int nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
-                              "MemcacheLoad::run: epoll_wait()");
+                               "MemcacheLoad::run: epoll_wait()");
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
             sock_->run_io(ev.events);

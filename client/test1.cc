@@ -10,8 +10,14 @@ using namespace std;
 struct W {
     int n;
 
-    W(void) : n{0} {}
-    W(int n_) : n{n_} {}
+    W(void)
+      : n{0}
+    {
+    }
+    W(int n_)
+      : n{n_}
+    {
+    }
 };
 
 void test_buffer(void)

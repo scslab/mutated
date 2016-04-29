@@ -27,7 +27,7 @@ class Generator
     using time_point = clock::time_point;
     using duration = std::chrono::microseconds;
     using RequestCB = std::function<void(Generator *, uint64_t, uint64_t,
-                                          uint64_t, uint64_t, bool)>;
+                                         uint64_t, uint64_t, bool)>;
 
   protected:
     int ref_cnt_;

@@ -32,10 +32,10 @@ class Memcache : public Generator
         MemReq(void) noexcept : MemReq(MemcCmd::Get, false, nullptr) {}
 
         MemReq(MemcCmd o, bool m, RequestCB c) noexcept : op{o},
-                                                           measure{m},
-                                                           cb{c},
-                                                           start_ts{},
-                                                           sent_ts{}
+                                                          measure{m},
+                                                          cb{c},
+                                                          start_ts{},
+                                                          sent_ts{}
         {
         }
     };

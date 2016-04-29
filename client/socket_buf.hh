@@ -22,10 +22,9 @@ class Sock;
 /**
  * A RX IO operation.
  */
-struct IORx
-{
-    using CB = std::function<size_t(Sock *, void *, char *, size_t,
-                                         char *, size_t, int)>;
+struct IORx {
+    using CB = std::function<size_t(Sock *, void *, char *, size_t, char *,
+                                    size_t, int)>;
 
     size_t hdrlen;
     CB hdrcb;
@@ -34,19 +33,19 @@ struct IORx
     void *cbdata;
 
     IORx(void) noexcept : hdrlen{0},
-                             hdrcb{},
-                             bodylen{0},
-                             bodycb{},
-                             cbdata{nullptr}
+                          hdrcb{},
+                          bodylen{0},
+                          bodycb{},
+                          cbdata{nullptr}
     {
     }
 
     IORx(size_t hdrlen_, CB hdrcb_, size_t bodylen_, CB bodycb_,
-            void *cbdata_) noexcept : hdrlen{hdrlen_},
-                                      hdrcb{hdrcb_},
-                                      bodylen{bodylen_},
-                                      bodycb{bodycb_},
-                                      cbdata{cbdata_}
+         void *cbdata_) noexcept : hdrlen{hdrlen_},
+                                   hdrcb{hdrcb_},
+                                   bodylen{bodylen_},
+                                   bodycb{bodycb_},
+                                   cbdata{cbdata_}
     {
     }
 
@@ -58,8 +57,7 @@ struct IORx
 /**
  * A TX IO operation.
  */
-struct IOTx
-{
+struct IOTx {
     using CB = std::function<void(Sock *, void *, int)>;
 
     size_t len;
@@ -69,8 +67,8 @@ struct IOTx
     IOTx(void) noexcept : len{0}, cb{}, cbdata{nullptr} {}
 
     IOTx(size_t len_, CB cb_, void *cbdata_) noexcept : len{len_},
-                                                                cb{cb_},
-                                                                cbdata{cbdata_}
+                                                        cb{cb_},
+                                                        cbdata{cbdata_}
     {
     }
 
@@ -105,8 +103,8 @@ class Sock
     charbuf wbuf_;   /* write buffer */
     size_t tx_out_;  /* total tx data waiting to be sent in txcbs queue */
 
-    void rx(void);   /* receive handler */
-    void tx(void);   /* transmit handler */
+    void rx(void); /* receive handler */
+    void tx(void); /* transmit handler */
 
   public:
     Sock(void) noexcept;

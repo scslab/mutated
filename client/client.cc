@@ -26,7 +26,7 @@ Client::Client(Config c)
   , gen_cb_{bind(&Client::record_sample, this, _1, _2, _3, _4, _5, _6)}
   , epollfd_{system_call(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd_{system_call(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
-                       "Client::Client: timefd_create()")}
+                         "Client::Client: timefd_create()")}
   , results_{cfg_.samples}
   , sent_count_{0}
   , rcvd_count_{0}
@@ -65,7 +65,7 @@ void Client::epoll_watch(int fd, void *data, uint32_t events)
     ev.events = events | EPOLLET;
     ev.data.ptr = data;
     system_call(epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ev),
-               "Client::epoll_watch: epoll_ctl()");
+                "Client::epoll_watch: epoll_ctl()");
 }
 
 /**
@@ -84,7 +84,7 @@ void Client::timer_arm(duration deadline)
     itval.it_value.tv_nsec = deadline.count() - itval.it_value.tv_sec * NSEC;
 
     system_call(timerfd_settime(timerfd_, 0, &itval, NULL),
-               "Client::timer_arm: timerfd_settime()");
+                "Client::timer_arm: timerfd_settime()");
 }
 
 /**
@@ -103,10 +103,10 @@ void Client::run(void)
 
         if (cfg_.use_epoll_spin) {
             nfds = system_call(epoll_spin(epollfd_, events, MAX_EVENTS, -1),
-                              "Client::run: epoll_spin()");
+                               "Client::run: epoll_spin()");
         } else {
             nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
-                              "Client::run: epoll_wait()");
+                               "Client::run: epoll_wait()");
         }
 
         for (int i = 0; i < nfds; i++) {
@@ -254,8 +254,8 @@ void Client::send_request(void)
     }
 
     // in measure phase? (not warm up or down)
-    bool measure =
-      sent_count_ >= pre_samples_ and sent_count_ < pre_samples_ + measure_samples_;
+    bool measure = sent_count_ >= pre_samples_ and
+                   sent_count_ < pre_samples_ + measure_samples_;
 
     // gen is reference counted (get/put, starts at 1) and we'll deallocate it
     // in `record_sample`.
@@ -342,6 +342,6 @@ void Client::print_summary(void)
     printf("\n");
     printf("RX: %.2f MB/s (%.2f MB)\n", rx_mbs / time_s, rx_mbs);
     printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
-    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_,
-           sent_count_, double(missed_send_) / sent_count_ * 100);
+    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_, sent_count_,
+           double(missed_send_) / sent_count_ * 100);
 }

@@ -109,14 +109,16 @@ size_t Synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
     UNUSED(seg2);
 
     if (&sock_ != s) { // ensure right callback
-        throw runtime_error("Synthetic::recv_response: wrong socket in callback");
+        throw runtime_error(
+          "Synthetic::recv_response: wrong socket in callback");
     }
 
     if (status != 0) { // just drop on error
         requests_.drop(1);
         return 0;
     } else if (n + m != sizeof(resp_pkt)) { // ensure valid packet
-        throw runtime_error("Synthetic::recv_response: unexpected packet size");
+        throw runtime_error(
+          "Synthetic::recv_response: unexpected packet size");
     }
 
     // parse packet

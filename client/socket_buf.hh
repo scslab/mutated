@@ -111,6 +111,7 @@ class Sock
 
     txqueue txcbs; /* write queue */
     charbuf wbuf;  /* write buffer */
+    size_t txout;  /* total tx data waiting to be sent in txcbs queue */
 
     void rx(void); /* receive handler */
     void tx(void); /* transmit handler */

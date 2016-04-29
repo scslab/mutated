@@ -29,7 +29,8 @@ Sock::Sock(void) noexcept : fd_{-1},
                             rxcbs{},
                             rbuf{},
                             txcbs{},
-                            wbuf{}
+                            wbuf{},
+                            txout{0}
 {
 }
 
@@ -80,6 +81,7 @@ Sock::~Sock(void) noexcept
     tx_rdy = false;
     rxcbs.clear();
     txcbs.clear();
+    txout = 0;
 }
 
 /**
@@ -269,10 +271,12 @@ void Sock::tx(void)
         for (auto &txcb : txcbs) {
             if (txcb.len > size_t(nbytes)) {
                 txcb.len -= nbytes;
+                txout -= nbytes;
                 break;
             } else {
                 txcb.cb(this, txcb.cbdata, 0);
                 nbytes -= txcb.len;
+                txout -= txcb.len;
                 drop++;
             }
         }
@@ -329,16 +333,15 @@ void Sock::write(const void *data, const size_t len)
  */
 void Sock::write_cb_point(const ioop_tx::ioop_cb cb, void *data)
 {
-    size_t len = wbuf.items();
-
     // we want to store CB's by bytes needing to be sent as a delta from the
     // earlier CB as it makes firing them more efficient.
+    size_t len = wbuf.items();
     if (txcbs.items() == 0) {
         txcbs.queue_emplace(len, cb, data);
     } else {
-        size_t plen = txcbs.last()->len;
-        txcbs.queue_emplace(len - plen, cb, data);
+        txcbs.queue_emplace(len - txout, cb, data);
     }
+    txout = len;
 }
 
 /**

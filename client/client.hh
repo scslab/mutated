@@ -51,7 +51,6 @@ class Client
     void timer_handler(void);
     void setup_deadlines(void);
     void setup_experiment(void);
-    void print_header(void);
     void print_summary(void);
 
   public:
@@ -68,7 +67,7 @@ class Client
     void run(void);
 
     /* Record a latency sample. */
-    void record_sample(generator *, uint64_t service_us, uint64_t wait_us, uint64_t bytes,
+    void record_sample(generator *, uint64_t queue_us, uint64_t service_us, uint64_t wait_us, uint64_t bytes,
                        bool should_measure);
 };
 

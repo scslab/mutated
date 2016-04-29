@@ -22,7 +22,8 @@ synthetic::synthetic(const Config &cfg, mt19937 &rand) noexcept
     rand_{rand},
     service_dist_exp{1.0 / cfg.service_us},
     service_dist_lognorm{log(cfg.service_us) - 2.0, 2.0},
-    cb_{bind(&synthetic::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    rcb_{bind(&synthetic::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    tcb_{bind(&synthetic::sent_request, this, _1, _2, _3)},
     requests{}
 {
 }
@@ -67,11 +68,35 @@ uint64_t synthetic::_send_request(bool measure, request_cb cb)
     }
     sock_.write_commit(n);
 
+    // setup timestamps
+    req.start_ts = generator::clock::now();
+    sock_.write_cb_point(tcb_, &req);
+
+    // try transmission
+    sock_.try_tx();
+
     // add response to read queue
-    ioop io(sizeof(resp_pkt), cb_, 0, nullptr, &req);
+    ioop_rx io(sizeof(resp_pkt), rcb_, 0, nullptr, &req);
     sock_.read(io);
 
     return n;
+}
+
+/**
+ * Handle marking a generated synthetic request as sent.
+ */
+void synthetic::sent_request(Sock *s, void *data, int status)
+{
+    if (&sock_ != s) { // ensure right callback
+        throw runtime_error(
+          "synthetic::sent_request: wrong socket in callback");
+    } else if (status != 0) { // just return on error
+        return;
+    }
+
+    // add in sent timestamp to packet
+    synreq *req = (synreq *) data;
+    req->sent_ts = generator::clock::now();
 }
 
 /**
@@ -101,22 +126,26 @@ size_t synthetic::recv_response(Sock *s, void *data, char *seg1, size_t n,
           "synth::recv_response: wrong response-request packet match");
     }
     auto now = generator::clock::now();
-    auto delta = now - req.start_ts;
-    if (delta <= generator::duration(0)) {
-        throw runtime_error(
-          "synth::recv_response: sample arrived before it was sent");
-    }
 
-    // measurement noise can push wait_us into negative values sometimes
-    uint64_t wait_us;
+    // client-side queue time
+    auto delta = req.sent_ts - req.start_ts;
+    uint64_t queue_us =
+      chrono::duration_cast<generator::duration>(delta).count();
+
+    // service time
+    delta = now - req.start_ts;
     uint64_t service_us =
       chrono::duration_cast<generator::duration>(delta).count();
+
+    // wait time
+    uint64_t wait_us;
     if (service_us > req.service_us) {
         wait_us = service_us - req.service_us;
     } else {
+        // measurement noise can push wait_us into negative values sometimes
         wait_us = 0;
     }
-    req.cb(this, service_us, wait_us, sizeof(resp_pkt), req.measure);
+    req.cb(this, queue_us, service_us, wait_us, sizeof(resp_pkt), req.measure);
 
     // no body, only a header
     return 0;

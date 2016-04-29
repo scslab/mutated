@@ -43,7 +43,8 @@ memcache::memcache(const Config &cfg, std::mt19937 &&rand) noexcept
   : cfg_{cfg},
     rand_{move(rand)},
     setget_{0, 1.0},
-    cb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    rcb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    tcb_{bind(&memcache::sent_request, this, _1, _2, _3)},
     requests_{},
     seqid_{rand_()} // start from random sequence id
 {
@@ -90,7 +91,7 @@ uint64_t memcache::_send_request(bool measure, request_cb cb)
 {
     uint64_t id = seqid_++;
     uint16_t keylen;
-    uint32_t vallen;
+    uint32_t bodlen;
     char *key;
 
     // create our request
@@ -101,25 +102,49 @@ uint64_t memcache::_send_request(bool measure, request_cb cb)
     if (op == MemcCmd::Get) {
         sock_.write_emplace<MemcHeader>(MemcType::Request, op, 0, keylen, 0);
         sock_.write(key, keylen);
-        vallen = 0;
+        bodlen = keylen;
     } else {
         sock_.write_emplace<MemcHeader>(MemcType::Request, op, sizeof(MemcExtrasSet), keylen, cfg_.valsize);
         sock_.write_emplace<MemcExtrasSet>();
         sock_.write(key, keylen);
 
         // just write random bytes for the value
-        vallen = cfg_.valsize;
-        size_t vn = vallen;
+        size_t vn = cfg_.valsize;
         sock_.write_prepare(vn);
-        sock_.write_commit(vallen);
+        sock_.write_commit(cfg_.valsize);
+        bodlen = keylen + sizeof(MemcExtrasSet) + cfg_.valsize;
     }
 
-    // add response to read queue
+    // setup timestamps
     memreq &req = requests_.queue_emplace(op, measure, cb);
-    ioop io(MemcHeader::SIZE, cb_, 0, nullptr, &req);
+    req.start_ts = generator::clock::now();
+    sock_.write_cb_point(tcb_, &req);
+
+    // try transmission
+    sock_.try_tx();
+
+    // add response to read queue
+    ioop_rx io(MemcHeader::SIZE, rcb_, 0, nullptr, &req);
     sock_.read(io);
 
-    return MemcHeader::SIZE + keylen + vallen;
+    return MemcHeader::SIZE + bodlen;
+}
+
+/**
+ * Handle marking a generated memcache request as sent.
+ */
+void memcache::sent_request(Sock *s, void *data, int status)
+{
+    if (&sock_ != s) { // ensure right callback
+        throw runtime_error(
+          "memcache::sent_request: wrong socket in callback");
+    } else if (status != 0) { // just return on error
+        return;
+    }
+
+    // add in sent timestamp to packet
+    memreq *req = (memreq *) data;
+    req->sent_ts = generator::clock::now();
 }
 
 /**
@@ -145,11 +170,14 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
           "memcache::recv_response: wrong response-request packet match");
     }
     auto now = generator::clock::now();
-    auto delta = now - req.start_ts;
-    if (delta <= generator::duration(0)) {
-        throw std::runtime_error(
-          "memcache::recv_response: sample arrived before it was sent");
-    }
+
+    // client-side queue time
+    auto delta = req.sent_ts - req.start_ts;
+    uint64_t queue_us =
+      chrono::duration_cast<generator::duration>(delta).count();
+
+    // service time
+    delta = now - req.start_ts;
     uint64_t service_us =
       chrono::duration_cast<generator::duration>(delta).count();
 
@@ -168,7 +196,7 @@ size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
     }
 
     // record result
-    req.cb(this, service_us, 0, MemcHeader::SIZE + bodylen, req.measure);
+    req.cb(this, queue_us, service_us, 0, MemcHeader::SIZE + bodylen, req.measure);
 
     return bodylen;
 }

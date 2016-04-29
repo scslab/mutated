@@ -220,9 +220,12 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
     sock_->write(key, KEYSIZE);
     sock_->write(val, valsize_);
 
+    // try transmission
+    sock_->try_tx();
+
     // add response to read queue
     if (not quiet) {
-        ioop io(MemcHeader::SIZE, cb_, 0, nullptr, nullptr);
+        ioop_rx io(MemcHeader::SIZE, cb_, 0, nullptr, nullptr);
         sock_->read(io);
     }
 }

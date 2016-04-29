@@ -21,6 +21,7 @@ struct memreq {
     bool measure;
     request_cb cb;
     time_point start_ts;
+    time_point sent_ts;
 
     memreq(void) noexcept : memreq(MemcCmd::Get, false, nullptr) {}
 
@@ -28,7 +29,8 @@ struct memreq {
       : op{o},
         measure{m},
         cb{c},
-        start_ts{generator::clock::now()}
+        start_ts{},
+        sent_ts{}
     {
     }
 };
@@ -45,7 +47,8 @@ class memcache : public generator
     const Config &cfg_;
     std::mt19937 rand_;
     std::uniform_real_distribution<> setget_;
-    ioop::ioop_cb cb_;
+    ioop_rx::ioop_cb rcb_;
+    ioop_tx::ioop_cb tcb_;
     req_buffer requests_;
     uint64_t seqid_;
 
@@ -53,6 +56,7 @@ class memcache : public generator
     char *choose_key(uint64_t id, uint16_t &n);
     char *choose_val(uint64_t id, uint32_t &n);
 
+    void sent_request(Sock *s, void *data, int status);
     size_t recv_response(Sock *sock, void *data, char *seg1, size_t n,
                          char *seg2, size_t m, int status);
 

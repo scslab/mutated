@@ -23,7 +23,7 @@ Client::Client(Config c)
   , rd{}
   , randgen{rd()}
   , conn_dist{0, (int)cfg.conn_cnt - 1}
-  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4, _5)}
+  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4, _5, _6)}
   , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
   , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
@@ -42,7 +42,6 @@ Client::Client(Config c)
   , conns{}
 {
     epoll_watch(timerfd, NULL, EPOLLIN);
-    print_header();
 }
 
 /**
@@ -280,12 +279,12 @@ void Client::send_request(void)
 /**
  * Record a latency sample.
  */
-void Client::record_sample(generator *conn, uint64_t service_us,
+void Client::record_sample(generator *conn, uint64_t queue_us, uint64_t service_us,
                            uint64_t wait_us, uint64_t bytes, bool measure)
 {
     if (measure) {
         measure_count++;
-        results.add_sample(service_us, wait_us, bytes);
+        results.add_sample(queue_us, service_us, wait_us, bytes);
 
         // final measurement app-packet - record experiment time
         if (measure_count == measure_samples) {
@@ -303,29 +302,6 @@ void Client::record_sample(generator *conn, uint64_t service_us,
 }
 
 /**
- * Print header for results.
- *
- * NB: Keep this up to date with 'Client::print_summary()'.
- */
-void Client::print_header(void)
-{
-    if (cfg.protocol == Config::MEMCACHE) {
-        if (!cfg.machine_readable) {
-            cout << "#reqs/s\t\t(ideal)\t"
-                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-                 << endl;
-        }
-    } else {
-        if (!cfg.machine_readable) {
-            cout << "#reqs/s\t\t(ideal)\t"
-                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-                 << "\tmin\tavg\t\tstd\t\t99th\t99.9th\tmax"
-                 << endl;
-        }
-    }
-}
-
-/**
  * Print summary of current results.
  *
  * NB: Keep this up to date with 'Client::print_header()'.
@@ -338,20 +314,30 @@ void Client::print_summary(void)
         return;
     }
 
-    if (cfg.protocol == Config::MEMCACHE) {
-        printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+    cout << "#reqs/s: hit\t\ttarget" << endl;
+    printf("         %f\t%f\t\n", results.reqps(), cfg.req_s);
+    cout << endl;
+
+    cout << "service: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+    printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+           "\n",
+           results.service().min(), results.service().mean(),
+           results.service().stddev(), results.service().percentile(0.99),
+           results.service().percentile(0.999), results.service().max());
+    cout << endl;
+
+    cout << " buffer: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+    printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+           "\n",
+           results.queue().min(), results.queue().mean(),
+           results.queue().stddev(), results.queue().percentile(0.99),
+           results.queue().percentile(0.999), results.queue().max());
+
+    if (cfg.protocol == Config::SYNTHETIC) {
+        cout << endl;
+        cout << "   wait: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
+        printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
                "\n",
-               results.reqps(), cfg.req_s,
-               results.service().min(), results.service().mean(),
-               results.service().stddev(), results.service().percentile(0.99),
-               results.service().percentile(0.999), results.service().max());
-    } else {
-        printf("%f\t%f\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
-               "\t%" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n",
-               results.reqps(), cfg.req_s,
-               results.service().min(), results.service().mean(),
-               results.service().stddev(), results.service().percentile(0.99),
-               results.service().percentile(0.999), results.service().max(),
                results.wait().min(), results.wait().mean(),
                results.wait().stddev(), results.wait().percentile(0.99),
                results.wait().percentile(0.999), results.wait().max());

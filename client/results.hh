@@ -21,6 +21,7 @@ class Results
   private:
     time_point measure_start_;
     time_point measure_end_;
+    accum queue_;
     accum service_;
     accum wait_;
     uint64_t tx_bytes_;
@@ -28,7 +29,7 @@ class Results
     double reqps_;
 
   public:
-    Results(std::size_t reserve) noexcept : measure_start_{}, measure_end_{}, service_{reserve}, wait_{reserve}, tx_bytes_{0}, rx_bytes_{0}, reqps_{0} {}
+    Results(std::size_t reserve) noexcept : measure_start_{}, measure_end_{}, queue_{reserve}, service_{reserve}, wait_{reserve}, tx_bytes_{0}, rx_bytes_{0}, reqps_{0} {}
 
     void start_measurements(void) noexcept
     {
@@ -55,13 +56,15 @@ class Results
         tx_bytes_ += tx_bytes;
     }
 
-    void add_sample(uint64_t service, uint64_t wait, uint64_t rx_bytes)
+    void add_sample(uint64_t queue, uint64_t service, uint64_t wait, uint64_t rx_bytes)
     {
+        queue_.add_sample(queue);
         service_.add_sample(service);
         wait_.add_sample(wait);
         rx_bytes_ += rx_bytes;
     }
 
+    accum & queue(void) noexcept { return queue_; }
     accum & service(void) noexcept { return service_; }
     accum & wait(void) noexcept { return wait_; }
 

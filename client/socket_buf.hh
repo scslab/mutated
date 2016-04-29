@@ -20,9 +20,9 @@
 class Sock;
 
 /**
- * An IO operation.
+ * A RX IO operation.
  */
-class ioop
+class ioop_rx
 {
   public:
     using ioop_cb = std::function<size_t(Sock *, void *, char *, size_t,
@@ -30,13 +30,11 @@ class ioop
 
     size_t hdrlen;
     ioop_cb hdrcb;
-
     size_t bodylen;
     ioop_cb bodycb;
-
     void *cbdata;
 
-    ioop(void) noexcept : hdrlen{0},
+    ioop_rx(void) noexcept : hdrlen{0},
                           hdrcb{},
                           bodylen{0},
                           bodycb{},
@@ -44,8 +42,8 @@ class ioop
     {
     }
 
-    ioop(size_t hdrlen_, ioop_cb hdrcb_, size_t bodylen_, ioop_cb bodycb_,
-         void *cbdata_)
+    ioop_rx(size_t hdrlen_, ioop_cb hdrcb_, size_t bodylen_, ioop_cb bodycb_,
+         void *cbdata_) noexcept
       : hdrlen{hdrlen_}
       , hdrcb{hdrcb_}
       , bodylen{bodylen_}
@@ -54,19 +52,52 @@ class ioop
     {
     }
 
-    ioop(const ioop &) = default;
-    ioop &operator=(const ioop &) = default;
-    ~ioop(void) noexcept {}
+    ioop_rx(const ioop_rx &) = default;
+    ioop_rx &operator=(const ioop_rx &) = default;
+    ~ioop_rx(void) noexcept {}
+};
+
+/**
+ * A TX IO operation.
+ */
+class ioop_tx
+{
+  public:
+    using ioop_cb = std::function<void(Sock *, void *, int)>;
+
+    size_t len;
+    ioop_cb cb;
+    void *cbdata;
+
+    ioop_tx(void) noexcept : len{0}, cb{}, cbdata{nullptr}
+    {
+    }
+
+    ioop_tx(size_t len_, ioop_cb cb_, void *cbdata_) noexcept
+      : len{len_}
+      , cb{cb_}
+      , cbdata{cbdata_}
+    {
+    }
+
+    ioop_tx(const ioop_tx &) = default;
+    ioop_tx &operator=(const ioop_tx &) = default;
+    ~ioop_tx(void) noexcept {}
 };
 
 /**
  * Asynchronous socket (TCP only). Uses circular buffers internally for
  * managing rx and tx queues.
+ *
+ * NOTE: write operations (write_commit, write, write_emplace) should be
+ * followed by a try_tx to try sending the data if the socket is ready. Write
+ * operations place data on the tx buffer but don't attempt to transmit.
  */
 class Sock
 {
   public:
-    using ioqueue = buffer<ioop, MAX_OUTSTANDING_REQS>;
+    using rxqueue = buffer<ioop_rx, MAX_OUTSTANDING_REQS>;
+    using txqueue = buffer<ioop_tx, MAX_OUTSTANDING_REQS>;
 
   private:
     int fd_;             /* the file descriptor */
@@ -75,8 +106,10 @@ class Sock
     bool rx_rdy;         /* ready to read? */
     bool tx_rdy;         /* ready to write? */
 
-    ioqueue rxcbs; /* read queue */
+    rxqueue rxcbs; /* read queue */
     charbuf rbuf;  /* read buffer */
+
+    txqueue txcbs; /* write queue */
     charbuf wbuf;  /* write buffer */
 
     void rx(void); /* receive handler */
@@ -98,15 +131,17 @@ class Sock
     /* Open a new remote connection */
     void connect(const char *addr, unsigned short port);
 
-    /* Read queuing */
-    void read(const ioop &);
+    /* Read queueing */
+    void read(const ioop_rx & io);
 
-    /* Write queuing */
+    /* Write queueing preparation */
     std::pair<char *, char *> write_prepare(size_t &len);
     void write_commit(const size_t len);
+
+    /* Write */
     void write(const void *data, const size_t len);
 
-    /* Write to the queue by constructing in-place */
+    /* Write by constructing in-place */
     template<class T, class... Args>
     void write_emplace(Args &&... args)
     {
@@ -121,6 +156,14 @@ class Sock
         }
         write_commit(n);
     }
+
+    /* Insert a write callback to fire once all data previously inserted into
+     * the queue has been sent. You should insert a callback point _before_
+     * calling `try_tx()` ideally. */
+    void write_cb_point(const ioop_tx::ioop_cb cb, void *data);
+
+    /* Attempt to transmit data if the socket is ready */
+    void try_tx(void);
 
     /* Handle epoll events against this socket */
     void run_io(uint32_t events);

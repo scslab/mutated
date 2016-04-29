@@ -50,17 +50,61 @@ Once all the requested samples have been collected, output as follows will be
 produced:
 
 ``` sh
-#reqs/s    (ideal)  min  avg      std      99th  99.9th  max   min  avg     std     99th  99.9th  max
-10.260609  10.0000  183  1690.05  1430.51  6711  8665    8665  0    464.02  311.93  1746  1938    1938
+#reqs/s: hit        target
+         10.260609  10.0000 
+
+service: min  avg      std      99th  99.9th  max
+         183  1690.05  1430.51  6711  8665    8665
+
+ buffer: min  avg      std      99th  99.9th  max
+         183  1690.05  1430.51  6711  8665    8665
+
+   wait: min  avg     std     99th  99.9th  max
+         0    464.02  311.93  1746  1938    1938
 ```
 
-The first column gives the achieved requests/sec while, the second gives the
-targeted request/sec rate. The first set of columns (`min`, `avg`, `std`,
-`99th`, `99.9th` and `max`) gives the complete RTT for the application packets,
-while the second set of columns gives just the queueing delay.
+For the first group, the first column gives the achieved requests/sec while,
+the second gives the targeted request/sec rate.
 
-The queueing delay can only be calculated for protocols that explicitly support
-it (the service time for an application must be known a-priori).
+For the second group, service is the time to service a packet (total RTT) after
+it has been generated according to the schedule.
+
+The third group, buffer, gives the time a packet spent queue on the load
+generator before transmission over the network (or at least, to kernel-space).
+It ideally should be close to zero, and if not, indicates queueing from either
+the network, or blocking on the server side. This is somewhat like queuing
+delay but innacurate as it can only measure the time spent in userspace at the
+load generator, not the time spent queued in the kernel or at the server.
+
+The fourth group, wait, is the total queueing delay (accurate!). The queueing
+delay can only be calculated for protocols that explicitly support it (the
+service time for an application must be known a-priori).
+
+## What latency are we measuring?
+
+Firstly, at the start of an experiment run, we generate the complete packet
+schedule (transmit time for each application packet) that we will use.
+Secondly, we use our own socket abstraction that includes very large userspace
+tx and rx buffers. Application packets are generated on schedule and copied to
+the tx buffer. Should the tx buffer be full, we crash rather than block.
+
+The combination of these two design features allows us to notice when the
+generating machine can't hit it's expected schedule. If we our timers to
+generate application packets are behind schedule, then it can only be due to
+the machine being under too much load, as all network blocking has been
+removed. This gives us a lot more confidence than other tools in removing the
+latency of the measurement machine from the measurements.
+
+Finally, we generate two timestamps when transmitting an application packet:
+
+1) We generate a timestamp once we have copied the fresh application packet to
+the socket tx buffer, but before we attempt to transmit any of the tx buffer.
+2) We generate a second timestamp for that application packet once it has
+actually been written to the kernel / NIC.
+
+The difference between these two timestamps allows us some measure of client
+side queuing, due either to blocking on the NIC, in the network, or on the
+server side.
 
 ## Design
 

@@ -28,6 +28,7 @@ Sock::Sock(void) noexcept : fd_{-1},
                             tx_rdy{false},
                             rxcbs{},
                             rbuf{},
+                            txcbs{},
                             wbuf{}
 {
 }
@@ -44,6 +45,13 @@ Sock::~Sock(void) noexcept
         }
         if (rxcb.bodycb) {
             rxcb.bodycb(this, rxcb.cbdata, nullptr, 0, nullptr, 0, -EIO);
+        }
+    }
+
+    // cancel all pending write requests
+    for (auto &txcb : txcbs) {
+        if (txcb.cb) {
+            txcb.cb(this, txcb.cbdata, -EIO);
         }
     }
 
@@ -71,6 +79,7 @@ Sock::~Sock(void) noexcept
     rx_rdy = false;
     tx_rdy = false;
     rxcbs.clear();
+    txcbs.clear();
 }
 
 /**
@@ -201,7 +210,7 @@ void Sock::rx(void)
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry.
  */
-void Sock::read(const ioop &op)
+void Sock::read(const ioop_rx &op)
 {
     size_t n = 1;
     *rxcbs.queue(n) = op;
@@ -250,6 +259,18 @@ void Sock::tx(void)
             throw runtime_error("Sock::tx: write sent more bytes than asked");
         }
         wbuf.drop(nbytes);
+
+        // update tx callbacks
+        for (auto &txcb : txcbs) {
+            if (txcb.len > size_t(nbytes)) {
+                txcb.len -= nbytes;
+                break;
+            } else {
+                txcb.cb(this, txcb.cbdata, 0);
+                txcbs.drop(1);
+                nbytes -= txcb.len;
+            }
+        }
     }
 }
 
@@ -274,9 +295,6 @@ pair<char *, char *> Sock::write_prepare(size_t &len)
 void Sock::write_commit(const size_t len)
 {
     wbuf.queue_commit(len);
-    if (tx_rdy) {
-        tx();
-    }
 }
 
 /**
@@ -294,6 +312,39 @@ void Sock::write(const void *data, const size_t len)
         memcpy(wptrs.second, p + n1, len - n1);
     }
     write_commit(len);
+}
+
+/**
+ * Insert a write callback to fire once all data previously inserted into the
+ * queue has been sent. You should insert a callback point _before_ calling
+ * `try_tx()` ideally.
+ * @cb: the write callback to fire.
+ * @data: the callback data.
+ */
+void Sock::write_cb_point(const ioop_tx::ioop_cb cb, void *data)
+{
+    size_t len = wbuf.items();
+
+    // we want to store CB's by bytes needing to be sent as a delta from the
+    // earlier CB as it makes firing them more efficient.
+    if (txcbs.items() == 0) {
+        txcbs.queue_emplace(len, cb, data);
+    } else {
+        size_t plen = txcbs.last()->len;
+        txcbs.queue_emplace(len - plen, cb, data);
+    }
+}
+
+/**
+ * Commit a previously prepared write on this socket, making it available for
+ * transmission.
+ * @len: the length of previously prepared write to commit.
+ */
+void Sock::try_tx(void)
+{
+    if (tx_rdy) {
+        tx();
+    }
 }
 
 /**

@@ -87,7 +87,7 @@ class buffer_iterator
     {
         buffer_iterator tmp(*this);
         if (ptr_ == span2_start_) {
-            ptr_ = span1_end_;
+            ptr_ = (pointer) span1_end_;
         }
         ptr_--;
         return tmp;
@@ -246,6 +246,23 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
+     * Last returns the last item that was enqueued to the circular buffer.
+     */
+    pointer last(void)
+    {
+        if (used_ == 0) {
+            throw std::system_error(ENOSPC, std::system_category(),
+                                    "buffer::last: buffer empty");
+        }
+
+        if (tail_ == buf_) {
+            return buf_ + BUFSZ - 1;
+        } else {
+            return --tail_;
+        }
+    }
+
+    /**
      * Peek returns a pair of pointers to satisfy the request for a array of
      * length len from the head of the queue. Since we may need to wrap to
      * return len array items, we return a pair of pointers and set len on
@@ -353,8 +370,8 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     }
 
     /**
-     * End returns an iterator for the circular buffer pointing to the end of
-     * the queue.
+     * End returns an iterator for the circular buffer pointing to the one-past
+     * the end of the queue.
      */
     iterator end(void)
     {

@@ -20,6 +20,7 @@ struct synreq {
     bool measure;
     request_cb cb;
     time_point start_ts;
+    time_point sent_ts;
     uint64_t service_us;
 
     synreq(void) noexcept : synreq(false, nullptr, 0) {}
@@ -27,7 +28,8 @@ struct synreq {
     synreq(bool m, request_cb c, uint64_t service) noexcept
       : measure{m},
         cb{c},
-        start_ts{generator::clock::now()},
+        start_ts{},
+        sent_ts{},
         service_us{service}
     {
     }
@@ -46,10 +48,12 @@ class synthetic : public generator
     std::mt19937 &rand_;
     std::exponential_distribution<double> service_dist_exp;
     std::lognormal_distribution<double> service_dist_lognorm;
-    ioop::ioop_cb cb_;
+    ioop_rx::ioop_cb rcb_;
+    ioop_tx::ioop_cb tcb_;
     req_buffer requests;
 
     uint64_t gen_service_time(void);
+    void sent_request(Sock *s, void *data, int status);
     size_t recv_response(Sock *sock, void *data, char *seg1, size_t n,
                          char *seg2, size_t m, int status);
 

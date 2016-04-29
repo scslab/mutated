@@ -12,6 +12,8 @@ pthread_SOURCES = pthread.cc
 
 isosched_SOURCES = isosched.cc
 
+golang_SOURCES = golang.go
+
 golang$(EXEEXT): golang.go
 	@go build $^
 

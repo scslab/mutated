@@ -158,6 +158,19 @@ We use `clang-format` to enforce a coding style and avoid bike-shedding
 arguments. Please run `make format` to format the code before committing your
 changes.
 
+Beyond `clang-format`, for issues such as naming conventions.. etc, we use the
+[Google C++ style guide](https://google.github.io/styleguide/cppguide.html).
+
+We deviate from it in the following ways:
+
+* Method names: we use lowercase and underscores, i.e., `method_one`, not
+  camel-case as they recommend `MethodOne`.
+* Type names: generally camel-case, e.g., `Accum`, `SockBuf`, but fine to use
+  camel-case when it's a cheap ('primitive') type, or a alias for an existing
+  C++ type that is lowercase, e.g., `using clock = std::chrono::steady_clock;`.
+  Finally, for our own container types (e.g., `buffer`), we use lowercase to
+  match C++ STL.
+
 We also make use of `cppcheck` and `clang-check` static analysis tools to look
 for bugs. Please check your changes with `make cppcheck` and `make clang-scan`.
 We keep the code free of all warnings at all times.

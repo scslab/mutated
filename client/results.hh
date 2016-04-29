@@ -21,9 +21,9 @@ class Results
   private:
     time_point measure_start_;
     time_point measure_end_;
-    accum queue_;
-    accum service_;
-    accum wait_;
+    Accum queue_;
+    Accum service_;
+    Accum wait_;
     uint64_t tx_bytes_;
     uint64_t rx_bytes_;
     double reqps_;
@@ -68,9 +68,9 @@ class Results
         rx_bytes_ += rx_bytes;
     }
 
-    accum &queue(void) noexcept { return queue_; }
-    accum &service(void) noexcept { return service_; }
-    accum &wait(void) noexcept { return wait_; }
+    Accum &queue(void) noexcept { return queue_; }
+    Accum &service(void) noexcept { return service_; }
+    Accum &wait(void) noexcept { return wait_; }
 
     double reqps(void) const noexcept { return reqps_; }
     uint64_t tx_bytes(void) const noexcept { return tx_bytes_; }

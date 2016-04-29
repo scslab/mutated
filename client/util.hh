@@ -13,7 +13,7 @@ static constexpr double NSEC = 1000000000;
 
 #define UNUSED(x) ((void)(x))
 
-inline unsigned int SystemCall(int status, const char *fail, int code = 0)
+inline unsigned int system_call(int status, const char *fail, int code = 0)
 {
     if (status < 0) {
         code = code == 0 ? errno : code;
@@ -23,9 +23,9 @@ inline unsigned int SystemCall(int status, const char *fail, int code = 0)
     }
 }
 
-inline unsigned int SystemCall(int status, std::string fail, int code = 0)
+inline unsigned int system_call(int status, std::string fail, int code = 0)
 {
-    return SystemCall(status, fail.c_str(), code);
+    return system_call(status, fail.c_str(), code);
 }
 
 #endif /* MUTATED_UTILS_HH */

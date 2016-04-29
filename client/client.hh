@@ -14,37 +14,36 @@
  */
 class Client
 {
-  public:
+  private:
     using clock = std::chrono::steady_clock;
     using time_point = clock::time_point;
     using duration = std::chrono::nanoseconds;
 
-  private:
-    Config cfg;
+    Config cfg_;
 
-    std::random_device rd;
-    std::mt19937 randgen;
-    std::uniform_int_distribution<int> conn_dist;
-    generator::request_cb gen_cb;
+    std::random_device rd_;
+    std::mt19937 randgen_;
+    std::uniform_int_distribution<int> conn_dist_;
+    Generator::RequestCB gen_cb_;
 
-    unsigned int epollfd;
-    unsigned int timerfd;
+    unsigned int epollfd_;
+    unsigned int timerfd_;
 
-    Results results;
+    Results results_;
 
-    uint64_t sent_count, rcvd_count, measure_count;
-    uint64_t pre_samples, post_samples, measure_samples, total_samples;
+    uint64_t sent_count_, rcvd_count_, measure_count_;
+    uint64_t pre_samples_, post_samples_, measure_samples_, total_samples_;
 
-    time_point exp_start_time;
-    std::vector<duration> deadlines;
-    duration missed_threshold;
-    uint64_t missed_send_window;
+    time_point exp_start_time_;
+    std::vector<duration> deadlines_;
+    duration missed_threshold_;
+    uint64_t missed_send_;
 
-    std::vector<generator *> conns;
+    std::vector<Generator *> conns_;
 
-    generator *new_connection(void);
+    Generator *new_connection(void);
     void setup_connections(void);
-    generator *get_connection(void);
+    Generator *get_connection(void);
     void send_request(void);
     void epoll_watch(int fd, void *data, uint32_t events);
     void timer_arm(duration deadline);
@@ -67,7 +66,7 @@ class Client
     void run(void);
 
     /* Record a latency sample. */
-    void record_sample(generator *, uint64_t queue_us, uint64_t service_us,
+    void record_sample(Generator *, uint64_t queue_us, uint64_t service_us,
                        uint64_t wait_us, uint64_t bytes, bool should_measure);
 };
 

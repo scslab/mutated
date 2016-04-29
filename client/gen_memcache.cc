@@ -23,9 +23,9 @@ static constexpr std::size_t KEYLEN = 30;
 using keyarray =
   char (*)[KEYLEN + 1]; // can't type without a typdef it seems...
 
-static bool kv_setup_ = false;
-static keyarray keys_ = nullptr;
-static char *val_ = nullptr;
+static bool _kv_setup = false;
+static keyarray _keys = nullptr;
+static char *_val = nullptr;
 
 /**
  * Create a memcache request for a given key id.
@@ -39,30 +39,30 @@ static void create_key(char *buf, uint64_t id)
 /**
  * Construct.
  */
-memcache::memcache(const Config &cfg, std::mt19937 &&rand) noexcept
+Memcache::Memcache(const Config &cfg, std::mt19937 &&rand) noexcept
   : cfg_{cfg},
     rand_{move(rand)},
     setget_{0, 1.0},
-    rcb_{bind(&memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
-    tcb_{bind(&memcache::sent_request, this, _1, _2, _3)},
+    rcb_{bind(&Memcache::recv_response, this, _1, _2, _3, _4, _5, _6, _7)},
+    tcb_{bind(&Memcache::sent_request, this, _1, _2, _3)},
     requests_{},
     seqid_{rand_()} // start from random sequence id
 {
     UNUSED(cfg_);
 
     // create all needed requests upfront
-    if (not kv_setup_) {
-        kv_setup_ = true;
-        keys_ = new char[cfg.records][KEYLEN + 1];
+    if (not _kv_setup) {
+        _kv_setup = true;
+        _keys = new char[cfg.records][KEYLEN + 1];
         for (size_t i = 1; i <= cfg.records; i++) {
-            create_key(keys_[i - 1], i);
+            create_key(_keys[i - 1], i);
         }
-        val_ = new char[cfg.valsize];
-        memset(val_, 'a', cfg.valsize);
+        _val = new char[cfg.valsize];
+        memset(_val, 'a', cfg.valsize);
     }
 }
 
-MemcCmd memcache::choose_cmd(void)
+MemcCmd Memcache::choose_cmd(void)
 {
     if (setget_(rand_) < cfg_.setget) {
         return MemcCmd::Set;
@@ -71,23 +71,23 @@ MemcCmd memcache::choose_cmd(void)
     }
 }
 
-char *memcache::choose_key(uint64_t id, uint16_t &n)
+char *Memcache::choose_key(uint64_t id, uint16_t &n)
 {
     n = KEYLEN;
-    return keys_[id % cfg_.records];
+    return _keys[id % cfg_.records];
 }
 
-char *memcache::choose_val(uint64_t id, uint32_t &n)
+char *Memcache::choose_val(uint64_t id, uint32_t &n)
 {
     UNUSED(id);
     n = cfg_.valsize;
-    return val_;
+    return _val;
 }
 
 /**
  * Generate and send a new request.
  */
-uint64_t memcache::_send_request(bool measure, request_cb cb)
+uint64_t Memcache::_send_request(bool measure, RequestCB cb)
 {
     uint64_t id = seqid_++;
     uint16_t keylen;
@@ -117,15 +117,15 @@ uint64_t memcache::_send_request(bool measure, request_cb cb)
     }
 
     // setup timestamps
-    memreq &req = requests_.queue_emplace(op, measure, cb);
-    req.start_ts = generator::clock::now();
+    MemReq &req = requests_.queue_emplace(op, measure, cb);
+    req.start_ts = Generator::clock::now();
     sock_.write_cb_point(tcb_, &req);
 
     // try transmission
     sock_.try_tx();
 
     // add response to read queue
-    ioop_rx io(MemcHeader::SIZE, rcb_, 0, nullptr, &req);
+    IORx io(MemcHeader::SIZE, rcb_, 0, nullptr, &req);
     sock_.read(io);
 
     return MemcHeader::SIZE + bodlen;
@@ -134,61 +134,61 @@ uint64_t memcache::_send_request(bool measure, request_cb cb)
 /**
  * Handle marking a generated memcache request as sent.
  */
-void memcache::sent_request(Sock *s, void *data, int status)
+void Memcache::sent_request(Sock *s, void *data, int status)
 {
     if (&sock_ != s) { // ensure right callback
         throw runtime_error(
-          "memcache::sent_request: wrong socket in callback");
+          "Memcache::sent_request: wrong socket in callback");
     } else if (status != 0) { // just return on error
         return;
     }
 
     // add in sent timestamp to packet
-    memreq *req = reinterpret_cast<memreq *>(data);
-    req->sent_ts = generator::clock::now();
+    MemReq *req = reinterpret_cast<MemReq *>(data);
+    req->sent_ts = Generator::clock::now();
 }
 
 /**
  * Handle parsing a response from a previous request.
  */
-size_t memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
+size_t Memcache::recv_response(Sock *s, void *data, char *seg1, size_t n,
                                char *seg2, size_t m, int status)
 {
     if (&sock_ != s) { // ensure right callback
         throw runtime_error(
-          "memcache::recv_response: wrong socket in callback");
+          "Memcache::recv_response: wrong socket in callback");
     } else if (status != 0) { // just delete on error
         requests_.drop(1);
         return 0;
     } else if (n + m != MemcHeader::SIZE) { // ensure valid packet
-        throw runtime_error("memcache::recv_response: unexpected packet size");
+        throw runtime_error("Memcache::recv_response: unexpected packet size");
     }
 
     // calculate measurement
-    const memreq &req = requests_.dequeue_one();
+    const MemReq &req = requests_.dequeue_one();
     if (data != &req) {
         throw runtime_error(
-          "memcache::recv_response: wrong response-request packet match");
+          "Memcache::recv_response: wrong response-request packet match");
     }
-    auto now = generator::clock::now();
+    auto now = Generator::clock::now();
 
     // client-side queue time
     auto delta = req.sent_ts - req.start_ts;
-    if (delta <= generator::duration(0)) {
+    if (delta <= Generator::duration(0)) {
         throw std::runtime_error(
-          "memcache::recv_response: sent before it was generated");
+          "Memcache::recv_response: sent before it was generated");
     }
     uint64_t queue_us =
-      chrono::duration_cast<generator::duration>(delta).count();
+      chrono::duration_cast<Generator::duration>(delta).count();
 
     // service time
     delta = now - req.start_ts;
-    if (delta <= generator::duration(0)) {
+    if (delta <= Generator::duration(0)) {
         throw std::runtime_error(
-          "memcache::recv_response: arrived before it was sent");
+          "Memcache::recv_response: arrived before it was sent");
     }
     uint64_t service_us =
-      chrono::duration_cast<generator::duration>(delta).count();
+      chrono::duration_cast<Generator::duration>(delta).count();
 
     // parse packet - need to drop body
     uint32_t bodylen = 0;

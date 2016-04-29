@@ -11,46 +11,46 @@
 #include "socket_buf.hh"
 
 /**
- * Tracks an outstanding synthetic request.
- */
-struct synreq {
-    using request_cb = generator::request_cb;
-    using time_point = generator::time_point;
-
-    bool measure;
-    request_cb cb;
-    time_point start_ts;
-    time_point sent_ts;
-    uint64_t service_us;
-
-    synreq(void) noexcept : synreq(false, nullptr, 0) {}
-
-    synreq(bool m, request_cb c, uint64_t service) noexcept
-      : measure{m},
-        cb{c},
-        start_ts{},
-        sent_ts{},
-        service_us{service}
-    {
-    }
-};
-
-/**
  * Generator supporting our own mutated synthetic protocol.
  */
-class synthetic : public generator
+class Synthetic : public Generator
 {
-  public:
-    using req_buffer = buffer<synreq, MAX_OUTSTANDING_REQS>;
-
   private:
+    /**
+     * Tracks an outstanding synthetic request.
+     */
+    struct SynReq {
+        using RequestCB = Generator::RequestCB;
+        using time_point = Generator::time_point;
+
+        bool measure;
+        RequestCB cb;
+        time_point start_ts;
+        time_point sent_ts;
+        uint64_t service_us;
+
+        SynReq(void) noexcept : SynReq(false, nullptr, 0) {}
+
+        SynReq(bool m, RequestCB c, uint64_t service) noexcept
+          : measure{m},
+            cb{c},
+            start_ts{},
+            sent_ts{},
+            service_us{service}
+        {
+        }
+    };
+
+    /* Buffer for tracking requests outstanding */
+    using req_buffer = buffer<SynReq, MAX_OUTSTANDING_REQS>;
+
     const Config &cfg_;
     std::mt19937 &rand_;
-    std::exponential_distribution<double> service_dist_exp;
-    std::lognormal_distribution<double> service_dist_lognorm;
-    ioop_rx::ioop_cb rcb_;
-    ioop_tx::ioop_cb tcb_;
-    req_buffer requests;
+    std::exponential_distribution<double> service_dist_exp_;
+    std::lognormal_distribution<double> service_dist_lognorm_;
+    IORx::CB rcb_;
+    IOTx::CB tcb_;
+    req_buffer requests_;
 
     uint64_t gen_service_time(void);
     void sent_request(Sock *s, void *data, int status);
@@ -58,17 +58,17 @@ class synthetic : public generator
                          char *seg2, size_t m, int status);
 
   protected:
-    uint64_t _send_request(bool measure, request_cb cb) override;
+    uint64_t _send_request(bool measure, RequestCB cb) override;
 
   public:
-    synthetic(const Config &cfg, std::mt19937 &rand) noexcept;
-    ~synthetic(void) noexcept {}
+    Synthetic(const Config &cfg, std::mt19937 &rand) noexcept;
+    ~Synthetic(void) noexcept {}
 
     /* No copy or move */
-    synthetic(const synthetic &) = delete;
-    synthetic(synthetic &&) = delete;
-    synthetic &operator=(const synthetic &) = delete;
-    synthetic &operator=(synthetic &&) = delete;
+    Synthetic(const Synthetic &) = delete;
+    Synthetic(Synthetic &&) = delete;
+    Synthetic &operator=(const Synthetic &) = delete;
+    Synthetic &operator=(Synthetic &&) = delete;
 };
 
 #endif /* MUTATED_GEN_SYNTHETIC_HH */

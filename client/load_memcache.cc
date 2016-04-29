@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
                            uint64_t toload, uint64_t valsize, uint64_t startid,
                            uint64_t batch, uint64_t notify)
-  : epollfd_{SystemCall(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
+  : epollfd_{system_call(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
   , sock_{make_unique<Sock>()}
   , cb_{bind(&MemcacheLoad::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
   , toload_{toload}
@@ -159,7 +159,7 @@ void MemcacheLoad::epoll_watch(int fd, void *data, uint32_t events)
     epoll_event ev;
     ev.events = events | EPOLLET;
     ev.data.ptr = data;
-    SystemCall(epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ev),
+    system_call(epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ev),
                "MemcacheLoad::epoll_watch: epoll_ctl()");
 }
 
@@ -183,7 +183,7 @@ void MemcacheLoad::run(void)
             break;
         }
 
-        int nfds = SystemCall(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
+        int nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
                               "MemcacheLoad::run: epoll_wait()");
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
@@ -224,7 +224,7 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 
     // add response to read queue
     if (not quiet) {
-        ioop_rx io(MemcHeader::SIZE, cb_, 0, nullptr, nullptr);
+        IORx io(MemcHeader::SIZE, cb_, 0, nullptr, nullptr);
         sock_->read(io);
     }
 }

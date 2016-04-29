@@ -7,7 +7,7 @@
 /**
  * A sample accumulator container.
  */
-class accum
+class Accum
 {
   private:
     std::vector<uint64_t> samples_;
@@ -16,9 +16,9 @@ class accum
   public:
     using size_type = std::vector<uint64_t>::size_type;
 
-    accum(void) noexcept : samples_{}, sorted_{false} {}
+    Accum(void) noexcept : samples_{}, sorted_{false} {}
 
-    explicit accum(std::size_t reserve) noexcept : samples_{reserve},
+    explicit Accum(std::size_t reserve) noexcept : samples_{reserve},
                                                    sorted_{false}
     {
         // we want to zero out the memory to ensure it's paged in, but we still
@@ -26,7 +26,7 @@ class accum
         samples_.resize(0);
     }
 
-    ~accum(void) noexcept {}
+    ~Accum(void) noexcept {}
 
     void clear(void);
     void add_sample(uint64_t val);

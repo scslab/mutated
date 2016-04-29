@@ -22,15 +22,14 @@ using namespace std;
  * Sock - construct a new socket.
  */
 Sock::Sock(void) noexcept : fd_{-1},
-                            port{0},
-                            connected{false},
-                            rx_rdy{false},
-                            tx_rdy{false},
-                            rxcbs{},
-                            rbuf{},
-                            txcbs{},
-                            wbuf{},
-                            txout{0}
+                            connected_{false},
+                            rx_rdy_{false},
+                            tx_rdy_{false},
+                            rx_cbs_{},
+                            rbuf_{},
+                            tx_cbs_{},
+                            wbuf_{},
+                            tx_out_{0}
 {
 }
 
@@ -40,7 +39,7 @@ Sock::Sock(void) noexcept : fd_{-1},
 Sock::~Sock(void) noexcept
 {
     // cancel all pending read requests
-    for (auto &rxcb : rxcbs) {
+    for (auto &rxcb : rx_cbs_) {
         if (rxcb.hdrcb) {
             rxcb.hdrcb(this, rxcb.cbdata, nullptr, 0, nullptr, 0, -EIO);
         }
@@ -50,7 +49,7 @@ Sock::~Sock(void) noexcept
     }
 
     // cancel all pending write requests
-    for (auto &txcb : txcbs) {
+    for (auto &txcb : tx_cbs_) {
         if (txcb.cb) {
             txcb.cb(this, txcb.cbdata, -EIO);
         }
@@ -76,12 +75,12 @@ Sock::~Sock(void) noexcept
     }
 
     fd_ = -1;
-    connected = false;
-    rx_rdy = false;
-    tx_rdy = false;
-    rxcbs.clear();
-    txcbs.clear();
-    txout = 0;
+    connected_ = false;
+    rx_rdy_ = false;
+    tx_rdy_ = false;
+    rx_cbs_.clear();
+    tx_cbs_.clear();
+    tx_out_ = 0;
 }
 
 /**
@@ -91,19 +90,18 @@ Sock::~Sock(void) noexcept
  *
  * NOTE: disables nagle and makes the socket nonblocking.
  */
-void Sock::connect(const char *addr, unsigned short portt)
+void Sock::connect(const char *addr, unsigned short port)
 {
     int ret, opts;
     sockaddr_in saddr;
 
-    port = portt;
     fd_ =
-      SystemCall(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
+      system_call(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
 
     // make the socket nonblocking
-    opts = SystemCall(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
+    opts = system_call(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
     opts = (opts | O_NONBLOCK);
-    SystemCall(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
+    system_call(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
 
     // connect
     memset(&saddr, 0, sizeof(saddr));
@@ -119,7 +117,7 @@ void Sock::connect(const char *addr, unsigned short portt)
 
     // disable TCP nagle algorithm (for lower latency)
     opts = 1;
-    SystemCall(
+    system_call(
       setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int)),
       "Sock::connect: setsockopt(TCP_NODELAY)");
 }
@@ -132,14 +130,14 @@ void Sock::rx(void)
     // run till we block (EAGAIN)
     while (true) {
         // is anything pending for read?
-        if (rxcbs.items() == 0) {
+        if (rx_cbs_.items() == 0) {
             return;
         }
 
         // do the read
         ssize_t nbytes;
-        size_t n = rbuf.space(), n1 = n;
-        auto rptrs = rbuf.queue_prep(n1);
+        size_t n = rbuf_.space(), n1 = n;
+        auto rptrs = rbuf_.queue_prep(n1);
         if (rptrs.second == nullptr) {
             // no wrapping, normal read
             nbytes = ::read(fd_, rptrs.first, n);
@@ -154,7 +152,7 @@ void Sock::rx(void)
         }
 
         if (nbytes < 0 and errno == EAGAIN) {
-            rx_rdy = false;
+            rx_rdy_ = false;
             return;
         } else if (nbytes <= 0) {
             throw system_error(errno, system_category(),
@@ -163,46 +161,46 @@ void Sock::rx(void)
             throw runtime_error(
               "Sock::rx: read returned more bytes than asked");
         }
-        rbuf.queue_commit(nbytes);
+        rbuf_.queue_commit(nbytes);
 
         size_t drop = 0;
-        for (auto &rxcb : rxcbs) {
+        for (auto &rxcb : rx_cbs_) {
             if (rxcb.hdrlen > 0) {
-                if (rbuf.items() < rxcb.hdrlen) {
+                if (rbuf_.items() < rxcb.hdrlen) {
                     if (!rxcb.hdrcb) { // partial drop when no cb
-                        size_t n = rbuf.items();
+                        size_t n = rbuf_.items();
                         rxcb.hdrlen -= n;
-                        rbuf.drop(n);
+                        rbuf_.drop(n);
                     }
                     break;
                 }
                 if (rxcb.hdrcb) {
                     n = n1 = rxcb.hdrlen;
-                    rptrs = rbuf.peek(n1);
+                    rptrs = rbuf_.peek(n1);
                     // parse header and set body length from it
                     rxcb.bodylen = rxcb.hdrcb(this, rxcb.cbdata, rptrs.first,
                                               n1, rptrs.second, n - n1, 0);
                 }
-                rbuf.drop(rxcb.hdrlen);
+                rbuf_.drop(rxcb.hdrlen);
                 rxcb.hdrlen = 0; // mark header done
             }
 
             if (rxcb.bodylen > 0) {
-                if (rbuf.items() < rxcb.bodylen) {
+                if (rbuf_.items() < rxcb.bodylen) {
                     if (!rxcb.bodycb) { // partial drop when no cb
-                        size_t n = rbuf.items();
+                        size_t n = rbuf_.items();
                         rxcb.bodylen -= n;
-                        rbuf.drop(n);
+                        rbuf_.drop(n);
                     }
                     break;
                 }
                 if (rxcb.bodycb) {
                     n = n1 = rxcb.bodylen;
-                    rptrs = rbuf.peek(n1);
+                    rptrs = rbuf_.peek(n1);
                     rxcb.bodycb(this, rxcb.cbdata, rptrs.first, n1,
                                 rptrs.second, n - n1, 0);
                 }
-                rbuf.drop(rxcb.bodylen);
+                rbuf_.drop(rxcb.bodylen);
                 rxcb.bodylen = 0; // mark body done
             }
 
@@ -210,7 +208,7 @@ void Sock::rx(void)
         }
 
         // drop done packets
-        rxcbs.drop(drop);
+        rx_cbs_.drop(drop);
     }
 }
 
@@ -218,11 +216,11 @@ void Sock::rx(void)
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry.
  */
-void Sock::read(const ioop_rx &op)
+void Sock::read(const IORx &op)
 {
     size_t n = 1;
-    *rxcbs.queue(n) = op;
-    if (rx_rdy) {
+    *rx_cbs_.queue(n) = op;
+    if (rx_rdy_) {
         rx();
     }
 }
@@ -234,13 +232,13 @@ void Sock::tx(void)
 {
     while (true) {
         // is anything pending for send?
-        if (wbuf.items() == 0) {
+        if (wbuf_.items() == 0) {
             return;
         }
 
         ssize_t nbytes;
-        size_t n = wbuf.items(), n1 = n;
-        auto wptrs = wbuf.peek(n1);
+        size_t n = wbuf_.items(), n1 = n;
+        auto wptrs = wbuf_.peek(n1);
 
         if (wptrs.second == nullptr) {
             // no wrapping, normal write
@@ -257,7 +255,7 @@ void Sock::tx(void)
 
         if (nbytes < 0) {
             if (errno == EAGAIN) {
-                tx_rdy = false;
+                tx_rdy_ = false;
                 return;
             } else {
                 throw system_error(errno, system_category(),
@@ -266,23 +264,23 @@ void Sock::tx(void)
         } else if (size_t(nbytes) > n) {
             throw runtime_error("Sock::tx: write sent more bytes than asked");
         }
-        wbuf.drop(nbytes);
+        wbuf_.drop(nbytes);
 
         // update tx callbacks
         size_t drop = 0;
-        for (auto &txcb : txcbs) {
+        for (auto &txcb : tx_cbs_) {
             if (txcb.len > size_t(nbytes)) {
                 txcb.len -= nbytes;
-                txout -= nbytes;
+                tx_out_ -= nbytes;
                 break;
             } else {
                 txcb.cb(this, txcb.cbdata, 0);
                 nbytes -= txcb.len;
-                txout -= txcb.len;
+                tx_out_ -= txcb.len;
                 drop++;
             }
         }
-        txcbs.drop(drop);
+        tx_cbs_.drop(drop);
     }
 }
 
@@ -296,7 +294,7 @@ void Sock::tx(void)
  */
 pair<char *, char *> Sock::write_prepare(size_t &len)
 {
-    return wbuf.queue_prep(len);
+    return wbuf_.queue_prep(len);
 }
 
 /**
@@ -304,7 +302,7 @@ pair<char *, char *> Sock::write_prepare(size_t &len)
  * transmission.
  * @len: the length of previously prepared write to commit.
  */
-void Sock::write_commit(const size_t len) { wbuf.queue_commit(len); }
+void Sock::write_commit(const size_t len) { wbuf_.queue_commit(len); }
 
 /**
  * Copy len bytes from data to the socket tx queue for transmission.
@@ -330,17 +328,17 @@ void Sock::write(const void *data, const size_t len)
  * @cb: the write callback to fire.
  * @data: the callback data.
  */
-void Sock::write_cb_point(const ioop_tx::ioop_cb cb, void *data)
+void Sock::write_cb_point(const IOTx::CB cb, void *data)
 {
     // we want to store CB's by bytes needing to be sent as a delta from the
     // earlier CB as it makes firing them more efficient.
-    size_t len = wbuf.items();
-    if (txcbs.items() == 0) {
-        txcbs.queue_emplace(len, cb, data);
+    size_t len = wbuf_.items();
+    if (tx_cbs_.items() == 0) {
+        tx_cbs_.queue_emplace(len, cb, data);
     } else {
-        txcbs.queue_emplace(len - txout, cb, data);
+        tx_cbs_.queue_emplace(len - tx_out_, cb, data);
     }
-    txout = len;
+    tx_out_ = len;
 }
 
 /**
@@ -350,7 +348,7 @@ void Sock::write_cb_point(const ioop_tx::ioop_cb cb, void *data)
  */
 void Sock::try_tx(void)
 {
-    if (tx_rdy) {
+    if (tx_rdy_) {
         tx();
     }
 }
@@ -381,16 +379,16 @@ static void __socket_check_connected(int fd)
 void Sock::run_io(uint32_t events)
 {
     if (events & EPOLLIN) {
-        rx_rdy = true;
+        rx_rdy_ = true;
         rx();
     }
 
     if (events & EPOLLOUT) {
-        if (not connected) {
+        if (not connected_) {
             __socket_check_connected(fd_);
-            connected = true;
+            connected_ = true;
         }
-        tx_rdy = true;
+        tx_rdy_ = true;
         tx();
     }
 }

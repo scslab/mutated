@@ -11,43 +11,43 @@
 #include "socket_buf.hh"
 
 /**
- * Tracks an outstanding memcache request.
- */
-struct memreq {
-    using request_cb = generator::request_cb;
-    using time_point = generator::time_point;
-
-    MemcCmd op;
-    bool measure;
-    request_cb cb;
-    time_point start_ts;
-    time_point sent_ts;
-
-    memreq(void) noexcept : memreq(MemcCmd::Get, false, nullptr) {}
-
-    memreq(MemcCmd o, bool m, request_cb c) noexcept : op{o},
-                                                       measure{m},
-                                                       cb{c},
-                                                       start_ts{},
-                                                       sent_ts{}
-    {
-    }
-};
-
-/**
  * Generator supporting the memcache binary protocol.
  */
-class memcache : public generator
+class Memcache : public Generator
 {
-  public:
-    using req_buffer = buffer<memreq, MAX_OUTSTANDING_REQS>;
-
   private:
+    /**
+     * Tracks an outstanding memcache request.
+     */
+    struct MemReq {
+        using RequestCB = Generator::RequestCB;
+        using time_point = Generator::time_point;
+
+        MemcCmd op;
+        bool measure;
+        RequestCB cb;
+        time_point start_ts;
+        time_point sent_ts;
+
+        MemReq(void) noexcept : MemReq(MemcCmd::Get, false, nullptr) {}
+
+        MemReq(MemcCmd o, bool m, RequestCB c) noexcept : op{o},
+                                                           measure{m},
+                                                           cb{c},
+                                                           start_ts{},
+                                                           sent_ts{}
+        {
+        }
+    };
+
+    /* Buffer for tracking requests outstanding */
+    using req_buffer = buffer<MemReq, MAX_OUTSTANDING_REQS>;
+
     const Config &cfg_;
     std::mt19937 rand_;
     std::uniform_real_distribution<> setget_;
-    ioop_rx::ioop_cb rcb_;
-    ioop_tx::ioop_cb tcb_;
+    IORx::CB rcb_;
+    IOTx::CB tcb_;
     req_buffer requests_;
     uint64_t seqid_;
 
@@ -60,17 +60,17 @@ class memcache : public generator
                          char *seg2, size_t m, int status);
 
   protected:
-    uint64_t _send_request(bool measure, request_cb cb) override;
+    uint64_t _send_request(bool measure, RequestCB cb) override;
 
   public:
-    memcache(const Config &cfg, std::mt19937 &&rand) noexcept;
-    ~memcache(void) noexcept {}
+    Memcache(const Config &cfg, std::mt19937 &&rand) noexcept;
+    ~Memcache(void) noexcept {}
 
     /* No copy or move */
-    memcache(const memcache &) = delete;
-    memcache(memcache &&) = delete;
-    memcache &operator=(const memcache &) = delete;
-    memcache &operator=(memcache &&) = delete;
+    Memcache(const Memcache &) = delete;
+    Memcache(Memcache &&) = delete;
+    Memcache &operator=(const Memcache &) = delete;
+    Memcache &operator=(Memcache &&) = delete;
 };
 
 #endif /* MUTATED_GEN_MEMCACHE_HH */

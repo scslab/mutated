@@ -22,19 +22,18 @@ class Sock;
 /**
  * A RX IO operation.
  */
-class ioop_rx
+struct IORx
 {
-  public:
-    using ioop_cb = std::function<size_t(Sock *, void *, char *, size_t,
+    using CB = std::function<size_t(Sock *, void *, char *, size_t,
                                          char *, size_t, int)>;
 
     size_t hdrlen;
-    ioop_cb hdrcb;
+    CB hdrcb;
     size_t bodylen;
-    ioop_cb bodycb;
+    CB bodycb;
     void *cbdata;
 
-    ioop_rx(void) noexcept : hdrlen{0},
+    IORx(void) noexcept : hdrlen{0},
                              hdrcb{},
                              bodylen{0},
                              bodycb{},
@@ -42,7 +41,7 @@ class ioop_rx
     {
     }
 
-    ioop_rx(size_t hdrlen_, ioop_cb hdrcb_, size_t bodylen_, ioop_cb bodycb_,
+    IORx(size_t hdrlen_, CB hdrcb_, size_t bodylen_, CB bodycb_,
             void *cbdata_) noexcept : hdrlen{hdrlen_},
                                       hdrcb{hdrcb_},
                                       bodylen{bodylen_},
@@ -51,34 +50,33 @@ class ioop_rx
     {
     }
 
-    ioop_rx(const ioop_rx &) = default;
-    ioop_rx &operator=(const ioop_rx &) = default;
-    ~ioop_rx(void) noexcept {}
+    IORx(const IORx &) = default;
+    IORx &operator=(const IORx &) = default;
+    ~IORx(void) noexcept {}
 };
 
 /**
  * A TX IO operation.
  */
-class ioop_tx
+struct IOTx
 {
-  public:
-    using ioop_cb = std::function<void(Sock *, void *, int)>;
+    using CB = std::function<void(Sock *, void *, int)>;
 
     size_t len;
-    ioop_cb cb;
+    CB cb;
     void *cbdata;
 
-    ioop_tx(void) noexcept : len{0}, cb{}, cbdata{nullptr} {}
+    IOTx(void) noexcept : len{0}, cb{}, cbdata{nullptr} {}
 
-    ioop_tx(size_t len_, ioop_cb cb_, void *cbdata_) noexcept : len{len_},
+    IOTx(size_t len_, CB cb_, void *cbdata_) noexcept : len{len_},
                                                                 cb{cb_},
                                                                 cbdata{cbdata_}
     {
     }
 
-    ioop_tx(const ioop_tx &) = default;
-    ioop_tx &operator=(const ioop_tx &) = default;
-    ~ioop_tx(void) noexcept {}
+    IOTx(const IOTx &) = default;
+    IOTx &operator=(const IOTx &) = default;
+    ~IOTx(void) noexcept {}
 };
 
 /**
@@ -91,26 +89,24 @@ class ioop_tx
  */
 class Sock
 {
-  public:
-    using rxqueue = buffer<ioop_rx, MAX_OUTSTANDING_REQS>;
-    using txqueue = buffer<ioop_tx, MAX_OUTSTANDING_REQS>;
-
   private:
-    int fd_;             /* the file descriptor */
-    unsigned short port; /* port connected to */
-    bool connected;      /* is the socket connected? */
-    bool rx_rdy;         /* ready to read? */
-    bool tx_rdy;         /* ready to write? */
+    using rxqueue = buffer<IORx, MAX_OUTSTANDING_REQS>;
+    using txqueue = buffer<IOTx, MAX_OUTSTANDING_REQS>;
 
-    rxqueue rxcbs; /* read queue */
-    charbuf rbuf;  /* read buffer */
+    int fd_;         /* the file descriptor */
+    bool connected_; /* is the socket connected? */
+    bool rx_rdy_;    /* ready to read? */
+    bool tx_rdy_;    /* ready to write? */
 
-    txqueue txcbs; /* write queue */
-    charbuf wbuf;  /* write buffer */
-    size_t txout;  /* total tx data waiting to be sent in txcbs queue */
+    rxqueue rx_cbs_; /* read queue */
+    charbuf rbuf_;   /* read buffer */
 
-    void rx(void); /* receive handler */
-    void tx(void); /* transmit handler */
+    txqueue tx_cbs_; /* write queue */
+    charbuf wbuf_;   /* write buffer */
+    size_t tx_out_;  /* total tx data waiting to be sent in txcbs queue */
+
+    void rx(void);   /* receive handler */
+    void tx(void);   /* transmit handler */
 
   public:
     Sock(void) noexcept;
@@ -129,7 +125,7 @@ class Sock
     void connect(const char *addr, unsigned short port);
 
     /* Read queueing */
-    void read(const ioop_rx &io);
+    void read(const IORx &io);
 
     /* Write queueing preparation */
     std::pair<char *, char *> write_prepare(size_t &len);
@@ -157,7 +153,7 @@ class Sock
     /* Insert a write callback to fire once all data previously inserted into
      * the queue has been sent. You should insert a callback point _before_
      * calling `try_tx()` ideally. */
-    void write_cb_point(const ioop_tx::ioop_cb cb, void *data);
+    void write_cb_point(const IOTx::CB cb, void *data);
 
     /* Attempt to transmit data if the socket is ready */
     void try_tx(void);

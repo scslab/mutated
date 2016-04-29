@@ -4,6 +4,8 @@
 /**
  * buffer.hh - circular buffer / queue implementation, allows inserting and
  * removing items in FIFO order.
+ *
+ * NOTE: we use lowercase here against our usual convention to match C++ STL.
  */
 
 #include <cstdint>

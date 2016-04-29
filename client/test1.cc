@@ -7,7 +7,7 @@
 
 using namespace std;
 
-void testRandomShare1(mt19937 &rand)
+void test_random_share1(mt19937 &rand)
 {
     exponential_distribution<double> ed1;
     cout << ed1(rand) << endl;
@@ -18,7 +18,7 @@ void testRandomShare1(mt19937 &rand)
     cout << ed1(rand) << endl;
 }
 
-void testRandomShare2(mt19937 &rand)
+void test_random_share2(mt19937 &rand)
 {
     exponential_distribution<double> ed1;
     exponential_distribution<double> ed2;
@@ -206,11 +206,11 @@ int main(int argc, char *argv[])
     mt19937 rand2 = rand1;
 
     cout << "# rand 1" << endl;
-    testRandomShare1(rand1);
+    test_random_share1(rand1);
     cout << endl;
 
     cout << "# rand 2" << endl;
-    testRandomShare2(rand2);
+    test_random_share2(rand2);
     cout << endl;
 
     cout << "# done" << endl; // decons*

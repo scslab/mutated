@@ -9,26 +9,26 @@
 
 using namespace std;
 
-void accum::clear(void)
+void Accum::clear(void)
 {
     samples_.clear();
     sorted_ = false;
 }
 
-void accum::add_sample(uint64_t val)
+void Accum::add_sample(uint64_t val)
 {
     samples_.push_back(val);
     sorted_ = false;
 }
 
-void accum::print_samples(void)
+void Accum::print_samples(void)
 {
     for (auto i : samples_) {
         cout << i << endl;
     }
 }
 
-double accum::mean(void)
+double Accum::mean(void)
 {
     double avg = 0;
     double sz = size();
@@ -40,7 +40,7 @@ double accum::mean(void)
     return avg;
 }
 
-double accum::stddev(void)
+double Accum::stddev(void)
 {
     double avg = mean();
     double sum = 0;
@@ -53,7 +53,7 @@ double accum::stddev(void)
     return sqrt(sum / size());
 }
 
-uint64_t accum::percentile(double percent)
+uint64_t Accum::percentile(double percent)
 {
     if (not sorted_) {
         sort(samples_.begin(), samples_.end());
@@ -62,7 +62,7 @@ uint64_t accum::percentile(double percent)
     return samples_[ceil(double(size()) * percent) - 1];
 }
 
-uint64_t accum::min(void)
+uint64_t Accum::min(void)
 {
     if (not sorted_) {
         sort(samples_.begin(), samples_.end());
@@ -71,7 +71,7 @@ uint64_t accum::min(void)
     return samples_[0];
 }
 
-uint64_t accum::max(void)
+uint64_t Accum::max(void)
 {
     if (not sorted_) {
         sort(samples_.begin(), samples_.end());
@@ -80,4 +80,4 @@ uint64_t accum::max(void)
     return samples_[samples_.size() - 1];
 }
 
-vector<uint64_t>::size_type accum::size(void) { return samples_.size(); }
+vector<uint64_t>::size_type Accum::size(void) { return samples_.size(); }

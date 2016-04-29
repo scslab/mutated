@@ -18,14 +18,13 @@ using namespace std;
 /**
  * Sock - construct a new socket.
  */
-Sock::Sock(void) noexcept : ref_cnt{1},
+Sock::Sock(void) noexcept : ref_cnt_{1},
                             fd_{-1},
-                            port{0},
-                            connected{false},
-                            rx_rdy{false},
-                            tx_rdy{false},
-                            rx_nrents{0},
-                            tx_nrents{0}
+                            connected_{false},
+                            rx_rdy_{false},
+                            tx_rdy_{false},
+                            rx_nrents_{0},
+                            tx_nrents_{0}
 {
 }
 
@@ -34,15 +33,15 @@ Sock::Sock(void) noexcept : ref_cnt{1},
  */
 Sock::~Sock(void) noexcept
 {
-    for (size_t i = 0; i < rx_nrents; i++) {
-        if (rx_ents[i].complete) {
-            rx_ents[i].complete(this, rx_ents[i].cb_data, -EIO);
+    for (size_t i = 0; i < rx_nrents_; i++) {
+        if (rx_ents_[i].complete) {
+            rx_ents_[i].complete(this, rx_ents_[i].cb_data, -EIO);
         }
     }
 
-    for (size_t i = 0; i < tx_nrents; i++) {
-        if (tx_ents[i].complete) {
-            tx_ents[i].complete(this, tx_ents[i].cb_data, -EIO);
+    for (size_t i = 0; i < tx_nrents_; i++) {
+        if (tx_ents_[i].complete) {
+            tx_ents_[i].complete(this, tx_ents_[i].cb_data, -EIO);
         }
     }
 
@@ -64,26 +63,26 @@ Sock::~Sock(void) noexcept
     }
 
     fd_ = -1;
-    connected = false;
-    rx_rdy = false;
-    tx_rdy = false;
-    rx_nrents = 0;
-    tx_nrents = 0;
+    connected_ = false;
+    rx_rdy_ = false;
+    tx_rdy_ = false;
+    rx_nrents_ = 0;
+    tx_nrents_ = 0;
 }
 
 /**
  * get - increase the reference count.
  */
-void Sock::get(void) noexcept { ref_cnt++; }
+void Sock::get(void) noexcept { ref_cnt_++; }
 
 /**
  * set - decrease the reference count, will deallocate if hits zero.
  */
 void Sock::put(void)
 {
-    if (--ref_cnt == 0) {
+    if (--ref_cnt_ == 0) {
         delete this;
-    } else if (ref_cnt < 0) {
+    } else if (ref_cnt_ < 0) {
         throw std::runtime_error("sock::put refcnt < 0");
     }
 }
@@ -95,19 +94,18 @@ void Sock::put(void)
  *
  * NOTE: disables nagle and makes the socket nonblocking.
  */
-void Sock::connect(const char *addr, unsigned short portt)
+void Sock::connect(const char *addr, unsigned short port)
 {
     int ret, opts;
     sockaddr_in saddr;
 
-    port = portt;
     fd_ =
-      SystemCall(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
+      system_call(socket(AF_INET, SOCK_STREAM, 0), "Sock::connect: socket()");
 
     // make the socket nonblocking
-    opts = SystemCall(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
+    opts = system_call(fcntl(fd_, F_GETFL), "Sock::connect: fcntl(F_GETFL)");
     opts = (opts | O_NONBLOCK);
-    SystemCall(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
+    system_call(fcntl(fd_, F_SETFL, opts), "Sock::connect: fcntl(F_SETFL)");
 
     // connect
     memset(&saddr, 0, sizeof(saddr));
@@ -123,7 +121,7 @@ void Sock::connect(const char *addr, unsigned short portt)
 
     // disable TCP nagle algorithm (for lower latency)
     opts = 1;
-    SystemCall(
+    system_call(
       setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, (char *)&opts, sizeof(int)),
       "Sock::connect: setsockopt(TCP_NODELAY)");
 }
@@ -134,21 +132,21 @@ void Sock::connect(const char *addr, unsigned short portt)
 void Sock::rx(void)
 {
     // is anything pending for read?
-    if (rx_nrents == 0) {
+    if (rx_nrents_ == 0) {
         return;
     }
 
     // prepare io read vector
-    iovec *iov = (iovec *)alloca(sizeof(iovec) * rx_nrents);
-    for (size_t i = 0; i < rx_nrents; i++) {
-        iov[i].iov_base = rx_ents[i].buf;
-        iov[i].iov_len = rx_ents[i].len;
+    iovec *iov = (iovec *)alloca(sizeof(iovec) * rx_nrents_);
+    for (size_t i = 0; i < rx_nrents_; i++) {
+        iov[i].iov_base = rx_ents_[i].buf;
+        iov[i].iov_len = rx_ents_[i].len;
     }
 
     // read io vector from wire
-    ssize_t ret = readv(fd_, iov, rx_nrents);
+    ssize_t ret = readv(fd_, iov, rx_nrents_);
     if (ret < 0 and errno == EAGAIN) {
-        rx_rdy = false;
+        rx_rdy_ = false;
         return;
     } else if (ret <= 0) {
         throw system_error(errno, system_category(), "Sock::rx: readv error");
@@ -156,30 +154,30 @@ void Sock::rx(void)
 
     // update outstanding IO given bytes read
     get();
-    for (size_t i = 0; i < rx_nrents; i++) {
-        if ((size_t)ret < rx_ents[i].len) {
+    for (size_t i = 0; i < rx_nrents_; i++) {
+        if ((size_t)ret < rx_ents_[i].len) {
             // partial read
-            rx_ents[i].len -= ret;
-            rx_ents[i].buf += ret;
+            rx_ents_[i].len -= ret;
+            rx_ents_[i].buf += ret;
 
-            move(rx_ents + i, rx_ents + rx_nrents, rx_ents);
-            rx_nrents -= i;
+            move(rx_ents_ + i, rx_ents_ + rx_nrents_, rx_ents_);
+            rx_nrents_ -= i;
             put();
 
             return;
         }
 
         // full read, invoke callback
-        if (rx_ents[i].complete) {
-            rx_ents[i].complete(this, rx_ents[i].cb_data, 0);
+        if (rx_ents_[i].complete) {
+            rx_ents_[i].complete(this, rx_ents_[i].cb_data, 0);
         }
-        ret -= rx_ents[i].len;
+        ret -= rx_ents_[i].len;
     }
 
     if (ret != 0) {
         throw runtime_error("Sock::rx: readv returned more bytes than asked");
     }
-    rx_nrents = 0;
+    rx_nrents_ = 0;
     put();
 }
 
@@ -187,15 +185,15 @@ void Sock::rx(void)
  * read - enqueue data to receive from the socket and read if socket ready.
  * @ent: the scatter-gather entry.
  */
-void Sock::read(const vio &ent)
+void Sock::read(const VIO &ent)
 {
-    if (rx_nrents >= MAX_SGS) {
+    if (rx_nrents_ >= MAX_SGS) {
         throw system_error(ENOSPC, system_category(),
                            "Sock::read: too many segments");
     }
-    rx_ents[rx_nrents++] = ent;
+    rx_ents_[rx_nrents_++] = ent;
 
-    if (rx_rdy) {
+    if (rx_rdy_) {
         rx();
     }
 }
@@ -206,22 +204,22 @@ void Sock::read(const vio &ent)
 void Sock::tx(void)
 {
     // is anything pending for send?
-    if (tx_nrents == 0) {
+    if (tx_nrents_ == 0) {
         return;
     }
 
     // prepare io write vector
-    iovec *iov = (iovec *)alloca(sizeof(iovec) * tx_nrents);
-    for (size_t i = 0; i < tx_nrents; i++) {
-        iov[i].iov_base = tx_ents[i].buf;
-        iov[i].iov_len = tx_ents[i].len;
+    iovec *iov = (iovec *)alloca(sizeof(iovec) * tx_nrents_);
+    for (size_t i = 0; i < tx_nrents_; i++) {
+        iov[i].iov_base = tx_ents_[i].buf;
+        iov[i].iov_len = tx_ents_[i].len;
     }
 
     // write io vector to wire
-    ssize_t nbytes = writev(fd_, iov, tx_nrents);
+    ssize_t nbytes = writev(fd_, iov, tx_nrents_);
     if (nbytes < 0) {
         if (errno == EAGAIN) {
-            tx_rdy = false;
+            tx_rdy_ = false;
             return;
         } else {
             throw system_error(errno, system_category(),
@@ -231,30 +229,30 @@ void Sock::tx(void)
 
     // update outstanding IO given bytes written
     get();
-    for (size_t i = 0; i < tx_nrents; i++) {
-        if ((size_t)nbytes < tx_ents[i].len) {
+    for (size_t i = 0; i < tx_nrents_; i++) {
+        if ((size_t)nbytes < tx_ents_[i].len) {
             // partial write
-            tx_ents[i].len -= nbytes;
-            tx_ents[i].buf += nbytes;
+            tx_ents_[i].len -= nbytes;
+            tx_ents_[i].buf += nbytes;
 
-            move(tx_ents + i, tx_ents + tx_nrents, tx_ents);
-            tx_nrents -= i;
+            move(tx_ents_ + i, tx_ents_ + tx_nrents_, tx_ents_);
+            tx_nrents_ -= i;
             put();
 
             return;
         }
 
         // full write, invoke callback
-        if (tx_ents[i].complete) {
-            tx_ents[i].complete(this, tx_ents[i].cb_data, 0);
+        if (tx_ents_[i].complete) {
+            tx_ents_[i].complete(this, tx_ents_[i].cb_data, 0);
         }
-        nbytes -= tx_ents[i].len;
+        nbytes -= tx_ents_[i].len;
     }
 
     if (nbytes != 0) {
         throw runtime_error("Sock::tx: writev returned more bytes than asked");
     }
-    tx_nrents = 0;
+    tx_nrents_ = 0;
     put();
 }
 
@@ -262,15 +260,15 @@ void Sock::tx(void)
  * write - enqueue data to send on the socket and send if socket ready.
  * @ent: the scatter-gather entry.
  */
-void Sock::write(const vio &ent)
+void Sock::write(const VIO &ent)
 {
-    if (tx_nrents >= MAX_SGS) {
+    if (tx_nrents_ >= MAX_SGS) {
         throw system_error(ENOSPC, system_category(),
                            "Sock::write: too many segments");
     }
-    tx_ents[tx_nrents++] = ent;
+    tx_ents_[tx_nrents_++] = ent;
 
-    if (tx_rdy) {
+    if (tx_rdy_) {
         tx();
     }
 }
@@ -303,16 +301,16 @@ void Sock::run_io(uint32_t events)
     get();
 
     if (events & EPOLLIN) {
-        rx_rdy = true;
+        rx_rdy_ = true;
         rx();
     }
 
     if (events & EPOLLOUT) {
-        if (not connected) {
+        if (not connected_) {
             __socket_check_connected(fd_);
-            connected = true;
+            connected_ = true;
         }
-        tx_rdy = true;
+        tx_rdy_ = true;
         tx();
     }
 

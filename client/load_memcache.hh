@@ -13,7 +13,7 @@ class MemcacheLoad
 
     unsigned int epollfd_;
     std::unique_ptr<Sock> sock_;
-    ioop_rx::ioop_cb cb_;
+    IORx::CB cb_;
     uint64_t toload_;
     uint64_t sent_;
     uint64_t recv_;

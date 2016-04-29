@@ -19,29 +19,29 @@ using namespace std::placeholders;
  * Create a new client.
  */
 Client::Client(Config c)
-  : cfg{c}
-  , rd{}
-  , randgen{rd()}
-  , conn_dist{0, (int)cfg.conn_cnt - 1}
-  , gen_cb{bind(&Client::record_sample, this, _1, _2, _3, _4, _5, _6)}
-  , epollfd{SystemCall(epoll_create1(0), "Client::Client: epoll_create1()")}
-  , timerfd{SystemCall(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
+  : cfg_{c}
+  , rd_{}
+  , randgen_{rd_()}
+  , conn_dist_{0, (int)cfg_.conn_cnt - 1}
+  , gen_cb_{bind(&Client::record_sample, this, _1, _2, _3, _4, _5, _6)}
+  , epollfd_{system_call(epoll_create1(0), "Client::Client: epoll_create1()")}
+  , timerfd_{system_call(timerfd_create(CLOCK_MONOTONIC, O_NONBLOCK),
                        "Client::Client: timefd_create()")}
-  , results{cfg.samples}
-  , sent_count{0}
-  , rcvd_count{0}
-  , measure_count{0}
-  , pre_samples{0}
-  , post_samples{0}
-  , measure_samples{0}
-  , total_samples{0}
-  , exp_start_time{}
-  , deadlines{}
-  , missed_threshold{-cfg.missed_window_us * 1000}
-  , missed_send_window{0}
-  , conns{}
+  , results_{cfg_.samples}
+  , sent_count_{0}
+  , rcvd_count_{0}
+  , measure_count_{0}
+  , pre_samples_{0}
+  , post_samples_{0}
+  , measure_samples_{0}
+  , total_samples_{0}
+  , exp_start_time_{}
+  , deadlines_{}
+  , missed_threshold_{-cfg_.missed_window_us * 1000}
+  , missed_send_{0}
+  , conns_{}
 {
-    epoll_watch(timerfd, NULL, EPOLLIN);
+    epoll_watch(timerfd_, NULL, EPOLLIN);
 }
 
 /**
@@ -49,8 +49,8 @@ Client::Client(Config c)
  */
 Client::~Client(void) noexcept
 {
-    close(epollfd);
-    close(timerfd);
+    close(epollfd_);
+    close(timerfd_);
 }
 
 /**
@@ -64,17 +64,8 @@ void Client::epoll_watch(int fd, void *data, uint32_t events)
     epoll_event ev;
     ev.events = events | EPOLLET;
     ev.data.ptr = data;
-    SystemCall(epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev),
+    system_call(epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ev),
                "Client::epoll_watch: epoll_ctl()");
-}
-
-/**
- * Convert a chrono duration value into a timespec value.
- */
-static void __duration_to_timerspec(Client::duration d, timespec &t)
-{
-    t.tv_sec = d.count() / NSEC;
-    t.tv_nsec = (d.count() - t.tv_sec * NSEC);
 }
 
 /**
@@ -89,9 +80,10 @@ void Client::timer_arm(duration deadline)
     itimerspec itval;
     itval.it_interval.tv_sec = 0;
     itval.it_interval.tv_nsec = 0;
-    __duration_to_timerspec(deadline, itval.it_value);
+    itval.it_value.tv_sec = deadline.count() / NSEC;
+    itval.it_value.tv_nsec = deadline.count() - itval.it_value.tv_sec * NSEC;
 
-    SystemCall(timerfd_settime(timerfd, 0, &itval, NULL),
+    system_call(timerfd_settime(timerfd_, 0, &itval, NULL),
                "Client::timer_arm: timerfd_settime()");
 }
 
@@ -109,11 +101,11 @@ void Client::run(void)
     while (true) {
         int nfds;
 
-        if (cfg.use_epoll_spin) {
-            nfds = SystemCall(epoll_spin(epollfd, events, MAX_EVENTS, -1),
+        if (cfg_.use_epoll_spin) {
+            nfds = system_call(epoll_spin(epollfd_, events, MAX_EVENTS, -1),
                               "Client::run: epoll_spin()");
         } else {
-            nfds = SystemCall(epoll_wait(epollfd, events, MAX_EVENTS, -1),
+            nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
                               "Client::run: epoll_wait()");
         }
 
@@ -122,7 +114,7 @@ void Client::run(void)
             if (ev.data.ptr == nullptr) {
                 timer_handler();
             } else {
-                generator *g = reinterpret_cast<generator *>(ev.data.ptr);
+                Generator *g = reinterpret_cast<Generator *>(ev.data.ptr);
                 g->run_io(ev.events);
             }
         }
@@ -133,7 +125,7 @@ void Client::setup_experiment(void)
 {
     setup_connections();
     setup_deadlines();
-    exp_start_time = clock::now();
+    exp_start_time_ = clock::now();
     timer_handler();
 }
 
@@ -141,88 +133,88 @@ void Client::setup_deadlines(void)
 {
     // Exponential distribution suggested by experimental evidence,
     // c.f. Figure 11 in "Power Management of Online Data-Intensive Services"
-    std::exponential_distribution<double> d(1.0 / (NSEC / cfg.req_s));
+    std::exponential_distribution<double> d(1.0 / (NSEC / cfg_.req_s));
     double accum = 0;
     uint64_t pos = 0;
     duration coolstart;
 
     // generate warm-up samples
     while (duration(uint64_t(ceil(accum))) <
-           std::chrono::seconds(cfg.warmup_seconds)) {
-        accum += d(randgen);
-        deadlines.push_back(duration(uint64_t(ceil(accum))));
+           std::chrono::seconds(cfg_.warmup_seconds)) {
+        accum += d(randgen_);
+        deadlines_.push_back(duration(uint64_t(ceil(accum))));
         pos++;
     }
-    pre_samples = pos;
+    pre_samples_ = pos;
 
     // generate measurement samples
-    while (pos - pre_samples < cfg.samples) {
-        accum += d(randgen);
-        deadlines.push_back(duration(uint64_t(ceil(accum))));
+    while (pos - pre_samples_ < cfg_.samples) {
+        accum += d(randgen_);
+        deadlines_.push_back(duration(uint64_t(ceil(accum))));
         pos++;
     }
-    measure_samples = cfg.samples;
+    measure_samples_ = cfg_.samples;
 
     // generate cool-down samples
     coolstart = duration(uint64_t(ceil(accum)));
     while (duration(uint64_t(ceil(accum))) - coolstart <
-           std::chrono::seconds(cfg.cooldown_seconds)) {
-        accum += d(randgen);
-        deadlines.push_back(duration(uint64_t(ceil(accum))));
+           std::chrono::seconds(cfg_.cooldown_seconds)) {
+        accum += d(randgen_);
+        deadlines_.push_back(duration(uint64_t(ceil(accum))));
         pos++;
     }
-    post_samples = pos - pre_samples - measure_samples;
-    total_samples = pos;
+    post_samples_ = pos - pre_samples_ - measure_samples_;
+    total_samples_ = pos;
 }
 
 /**
  * Create a new socket and associated packet generator.
  */
-generator *Client::new_connection(void)
+Generator *Client::new_connection(void)
 {
-    generator *gen;
-    switch (cfg.protocol) {
+    Generator *gen;
+    switch (cfg_.protocol) {
     case Config::SYNTHETIC:
-        gen = new synthetic(cfg, randgen);
+        gen = new Synthetic(cfg_, randgen_);
         break;
     case Config::MEMCACHE:
-        gen = new memcache(cfg, mt19937(rd()));
+        gen = new Memcache(cfg_, mt19937(rd_()));
         break;
     default:
         throw runtime_error("Unknown protocol");
         break;
     }
 
-    gen->connect(cfg.addr, cfg.port);
+    gen->connect(cfg_.addr, cfg_.port);
     epoll_watch(gen->fd(), gen, EPOLLIN | EPOLLOUT);
     return gen;
 }
 
 void Client::setup_connections(void)
 {
-    if (cfg.conn_mode == cfg.PER_REQUEST) {
+    if (cfg_.conn_mode == cfg_.PER_REQUEST) {
         return;
     }
 
-    for (size_t i = 0; i < cfg.conn_cnt; i++) {
-        conns.push_back(new_connection());
+    for (size_t i = 0; i < cfg_.conn_cnt; i++) {
+        conns_.push_back(new_connection());
     }
 }
 
-generator *Client::get_connection(void)
+Generator *Client::get_connection(void)
 {
-    if (cfg.conn_mode == cfg.PER_REQUEST) {
+    if (cfg_.conn_mode == cfg_.PER_REQUEST) {
         // create a new connection per request
         return new_connection();
-    } else if (cfg.conn_mode == cfg.ROUND_ROBIN) {
+    } else if (cfg_.conn_mode == cfg_.ROUND_ROBIN) {
         // round-robin through a pool of established connections
         static int idx = 0;
-        generator *gen = conns[idx++ % conns.size()];
+        Generator *gen = conns_[idx++ % conns_.size()];
         gen->get();
         return gen;
     } else {
         // randomly choose a connection from the pool
-        generator *gen = conns[conn_dist(randgen)];
+        Generator *gen = conns_[conn_dist_(randgen_)];
         gen->get();
         return gen;
     }
@@ -232,24 +224,24 @@ void Client::timer_handler(void)
 {
     time_point now_time = clock::now();
     duration now_relative =
-      chrono::duration_cast<duration>(now_time - exp_start_time);
+      chrono::duration_cast<duration>(now_time - exp_start_time_);
 
     uint64_t looped = 0;
     duration sleep_duration;
     while (true) {
-        sleep_duration = deadlines[sent_count] - now_relative;
+        sleep_duration = deadlines_[sent_count_] - now_relative;
         if (sleep_duration > duration(0)) {
             timer_arm(sleep_duration);
             return;
-        } else if (looped > 0 and sleep_duration < missed_threshold) {
+        } else if (looped > 0 and sleep_duration < missed_threshold_) {
             // Missed timer! Client appears to be overloaded...
             // TODO: Best way to detect and record?
-            missed_send_window++;
+            missed_send_++;
         }
         looped++;
         send_request();
-        sent_count++;
-        if (sent_count >= total_samples) {
+        sent_count_++;
+        if (sent_count_ >= total_samples_) {
             return;
         }
     }
@@ -257,44 +249,44 @@ void Client::timer_handler(void)
 
 void Client::send_request(void)
 {
-    if (sent_count == pre_samples) {
-        results.start_measurements();
+    if (sent_count_ == pre_samples_) {
+        results_.start_measurements();
     }
 
     // in measure phase? (not warm up or down)
     bool measure =
-      sent_count >= pre_samples and sent_count < pre_samples + measure_samples;
+      sent_count_ >= pre_samples_ and sent_count_ < pre_samples_ + measure_samples_;
 
     // gen is reference counted (get/put, starts at 1) and we'll deallocate it
     // in `record_sample`.
-    generator *gen = get_connection();
-    uint64_t bytes = gen->send_request(measure, gen_cb);
+    Generator *gen = get_connection();
+    uint64_t bytes = gen->send_request(measure, gen_cb_);
     if (measure) {
-        results.sent_bytes(bytes);
+        results_.sent_bytes(bytes);
     }
 }
 
 /**
  * Record a latency sample.
  */
-void Client::record_sample(generator *conn, uint64_t queue_us,
+void Client::record_sample(Generator *conn, uint64_t queue_us,
                            uint64_t service_us, uint64_t wait_us,
                            uint64_t bytes, bool measure)
 {
     if (measure) {
-        measure_count++;
-        results.add_sample(queue_us, service_us, wait_us, bytes);
+        measure_count_++;
+        results_.add_sample(queue_us, service_us, wait_us, bytes);
 
         // final measurement app-packet - record experiment time
-        if (measure_count == measure_samples) {
-            results.end_measurements();
+        if (measure_count_ == measure_samples_) {
+            results_.end_measurements();
         }
     }
 
     conn->put(); // request finished
 
-    rcvd_count++;
-    if (rcvd_count >= total_samples) {
+    rcvd_count_++;
+    if (rcvd_count_ >= total_samples_) {
         print_summary();
         exit(EXIT_SUCCESS);
     }
@@ -307,49 +299,49 @@ void Client::record_sample(generator *conn, uint64_t queue_us,
  */
 void Client::print_summary(void)
 {
-    if (cfg.machine_readable) {
-        printf("%f\n", results.reqps());
-        results.service().print_samples();
+    if (cfg_.machine_readable) {
+        printf("%f\n", results_.reqps());
+        results_.service().print_samples();
         return;
     }
 
     cout << "#reqs/s: hit\t\ttarget" << endl;
-    printf("         %f\t%f\t\n", results.reqps(), cfg.req_s);
+    printf("         %f\t%f\t\n", results_.reqps(), cfg_.req_s);
     cout << endl;
 
     cout << "service: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
     printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
            "\n",
-           results.service().min(), results.service().mean(),
-           results.service().stddev(), results.service().percentile(0.99),
-           results.service().percentile(0.999), results.service().max());
+           results_.service().min(), results_.service().mean(),
+           results_.service().stddev(), results_.service().percentile(0.99),
+           results_.service().percentile(0.999), results_.service().max());
     cout << endl;
 
     cout << " buffer: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
     printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
            "\n",
-           results.queue().min(), results.queue().mean(),
-           results.queue().stddev(), results.queue().percentile(0.99),
-           results.queue().percentile(0.999), results.queue().max());
+           results_.queue().min(), results_.queue().mean(),
+           results_.queue().stddev(), results_.queue().percentile(0.99),
+           results_.queue().percentile(0.999), results_.queue().max());
 
-    if (cfg.protocol == Config::SYNTHETIC) {
+    if (cfg_.protocol == Config::SYNTHETIC) {
         cout << endl;
         cout << "   wait: min\tavg\t\tstd\t\t99th\t99.9th\tmax" << endl;
         printf("         %" PRIu64 "\t%f\t%f\t%" PRIu64 "\t%" PRIu64
                "\t%" PRIu64 "\n",
-               results.wait().min(), results.wait().mean(),
-               results.wait().stddev(), results.wait().percentile(0.99),
-               results.wait().percentile(0.999), results.wait().max());
+               results_.wait().min(), results_.wait().mean(),
+               results_.wait().stddev(), results_.wait().percentile(0.99),
+               results_.wait().percentile(0.999), results_.wait().max());
     }
 
     constexpr uint64_t MB = 1024 * 1024;
-    double time_s = results.running_time() / NSEC;
-    double rx_mbs = double(results.rx_bytes()) / MB;
-    double tx_mbs = double(results.tx_bytes()) / MB;
+    double time_s = results_.running_time() / NSEC;
+    double rx_mbs = double(results_.rx_bytes()) / MB;
+    double tx_mbs = double(results_.tx_bytes()) / MB;
 
     printf("\n");
     printf("RX: %.2f MB/s (%.2f MB)\n", rx_mbs / time_s, rx_mbs);
     printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
-    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_window,
-           sent_count, double(missed_send_window) / sent_count * 100);
+    printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_,
+           sent_count_, double(missed_send_) / sent_count_ * 100);
 }

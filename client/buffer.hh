@@ -52,7 +52,7 @@ class buffer_iterator
     buffer_iterator(const buffer_iterator &bi) = default;
     buffer_iterator &operator=(const buffer_iterator &bi) = default;
 
-    ~buffer_iterator(void) {}
+    ~buffer_iterator(void) noexcept {}
 
     reference operator*(void) const { return *ptr_; }
     pointer operator->(void) const { return ptr_; }
@@ -93,13 +93,13 @@ class buffer_iterator
         return tmp;
     }
 
-    bool operator==(const buffer_iterator &bi) const
+    bool operator==(const buffer_iterator &bi) const noexcept
     {
         return ptr_ == bi.ptr_ && span1_end_ == bi.span1_end_ &&
                span2_start_ == bi.span2_start_;
     }
 
-    bool operator!=(const buffer_iterator &bi) const { return !(*this == bi); }
+    bool operator!=(const buffer_iterator &bi) const noexcept { return !(*this == bi); }
 };
 
 /**
@@ -248,7 +248,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
     /**
      * Last returns the last item that was enqueued to the circular buffer.
      */
-    pointer last(void)
+    pointer last(void) const
     {
         if (used_ == 0) {
             throw std::system_error(ENOSPC, std::system_category(),
@@ -360,7 +360,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
      * Begin returns an iterator for the circular buffer pointing to the start
      * of the queue.
      */
-    iterator begin(void)
+    iterator begin(void) const noexcept
     {
         if (used_ == 0 or head_ < tail_) {
             return buffer_iterator<T>(head_, nullptr, nullptr);
@@ -373,7 +373,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
      * End returns an iterator for the circular buffer pointing to the one-past
      * the end of the queue.
      */
-    iterator end(void)
+    iterator end(void) const noexcept
     {
         if (used_ == 0 or head_ < tail_) {
             return buffer_iterator<T>(tail_, nullptr, nullptr);
@@ -384,7 +384,7 @@ template <typename T, std::size_t BUFSZ = 1024> class buffer
 };
 
 /**
- * A character buffer is a 200MB buffer storing char's.
+ * A character buffer is a buffer storing char's.
  */
 using charbuf = buffer<char, CHARBUF_SIZE>;
 

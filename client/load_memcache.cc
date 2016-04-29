@@ -141,7 +141,7 @@ MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
   , seqid_{startid}
   , batch_{batch}
   , onwire_{0}
-  , notify_{notify}
+  , notify_{min(notify, batch)}
 {
     sock_->connect(addr, port);
     epoll_watch(sock_->fd(), nullptr, EPOLLIN | EPOLLOUT);

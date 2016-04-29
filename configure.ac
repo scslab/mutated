@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.69])
-AC_INIT([latency],[1.0.0],[dterei@cs.stanford.edu])
+AC_INIT([mutated],[1.0.0],[dterei@cs.stanford.edu])
 
 # Set automake options.
 AM_INIT_AUTOMAKE([foreign])

@@ -7,6 +7,48 @@
 
 using namespace std;
 
+struct W {
+    int n;
+
+    W(void) : n{0} {}
+    W(int n_) : n{n_} {}
+};
+
+void test_buffer(void)
+{
+    W n;
+    buffer<W, 5> buf;
+
+    buf.queue_emplace(1);
+    buf.queue_emplace(2);
+    buf.queue_emplace(3);
+    buf.queue_emplace(4);
+    buf.queue_emplace(5);
+
+    n = buf.dequeue_one();
+    cout << "1 = " << n.n << endl;
+
+    buf.queue_emplace(6);
+    n = buf.dequeue_one();
+    cout << "2 = " << n.n << endl;
+
+    buf.queue_emplace(7);
+    n = buf.dequeue_one();
+    cout << "3 = " << n.n << endl;
+
+    buf.drop(0);
+    buf.drop(1);
+    buf.drop(2);
+    buf.queue_emplace(8);
+    buf.queue_emplace(9);
+
+    for (auto &w : buf) {
+        cout << "? = " << w.n << endl;
+    }
+
+    cout << "last = " << buf.last()->n << endl;
+}
+
 void test_random_share1(mt19937 &rand)
 {
     exponential_distribution<double> ed1;
@@ -214,4 +256,6 @@ int main(int argc, char *argv[])
     cout << endl;
 
     cout << "# done" << endl; // decons*
+
+    test_buffer();
 }

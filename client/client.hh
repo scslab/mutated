@@ -54,7 +54,7 @@ class Client
     void print_summary(void);
 
   public:
-    Client(Config c);
+    explicit Client(Config c);
     ~Client(void) noexcept;
 
     /* No copy or move. */

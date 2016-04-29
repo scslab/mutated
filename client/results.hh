@@ -29,26 +29,26 @@ class Results
     double reqps_;
 
   public:
-    Results(std::size_t reserve) noexcept : measure_start_{},
-                                            measure_end_{},
-                                            queue_{reserve},
-                                            service_{reserve},
-                                            wait_{reserve},
-                                            tx_bytes_{0},
-                                            rx_bytes_{0},
-                                            reqps_{0}
+    explicit Results(std::size_t reserve) noexcept : measure_start_{},
+                                                     measure_end_{},
+                                                     queue_{reserve},
+                                                     service_{reserve},
+                                                     wait_{reserve},
+                                                     tx_bytes_{0},
+                                                     rx_bytes_{0},
+                                                     reqps_{0}
     {
     }
 
     void start_measurements(void) noexcept { measure_start_ = clock::now(); }
 
-    void end_measurements(void) noexcept
+    void end_measurements(void)
     {
         measure_end_ = clock::now();
         reqps_ = (double)service_.size() / (running_time() / NSEC);
     }
 
-    uint64_t running_time(void) noexcept
+    uint64_t running_time(void)
     {
         auto length = measure_end_ - measure_start_;
         if (length <= clock::duration(0)) {

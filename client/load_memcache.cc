@@ -170,7 +170,6 @@ void MemcacheLoad::run(void)
 {
     constexpr size_t MAX_EVENTS = 4096;
     epoll_event events[MAX_EVENTS];
-    int nfds;
 
     while (true) {
         while (sent_ < toload_ and onwire_ < batch_) {
@@ -184,8 +183,8 @@ void MemcacheLoad::run(void)
             break;
         }
 
-        nfds = SystemCall(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
-                          "MemcacheLoad::run: epoll_wait()");
+        int nfds = SystemCall(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
+                              "MemcacheLoad::run: epoll_wait()");
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
             sock_->run_io(ev.events);

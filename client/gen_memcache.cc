@@ -144,7 +144,7 @@ void memcache::sent_request(Sock *s, void *data, int status)
     }
 
     // add in sent timestamp to packet
-    memreq *req = (memreq *)data;
+    memreq *req = reinterpret_cast<memreq *>(data);
     req->sent_ts = generator::clock::now();
 }
 

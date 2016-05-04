@@ -115,7 +115,8 @@ Config::Config(int argc, char *argv[])
 
     uint64_t len = log10(keys);
     if (len > keyn) {
-        cerr << "Need a larger key size for the number of keys requested!" << endl;
+        cerr << "Need a larger key size for the number of keys requested!"
+             << endl;
         exit(1);
     }
 
@@ -132,8 +133,8 @@ Config::Config(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     Config cfg(argc, argv);
-    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.keyn, cfg.valn, cfg.start,
-                     cfg.batch, cfg.notify);
+    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.keyn, cfg.valn,
+                     cfg.start, cfg.batch, cfg.notify);
     mem.run();
     return EXIT_SUCCESS;
 }
@@ -141,9 +142,9 @@ int main(int argc, char *argv[])
 /**
  * Construct a new memcache data loader.
  */
-MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port, uint64_t toload,
-                           uint64_t keysize, uint64_t valsize, uint64_t startid,
-                           uint64_t batch, uint64_t notify)
+MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
+                           uint64_t toload, uint64_t keysize, uint64_t valsize,
+                           uint64_t startid, uint64_t batch, uint64_t notify)
   : epollfd_{system_call(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
   , sock_{make_unique<Sock>()}
   , cb_{bind(&MemcacheLoad::recv_response, this, _1, _2, _3, _4, _5, _6, _7)}
@@ -166,10 +167,11 @@ MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port, uint64_t toloa
 
     // create the fmt string for creating keys (TODO: better way than this?)
     // KEYFMT: <000000...N>
-    int n = snprintf(keyfmt_, KEYFMT_SIZE, "%%0%" PRIu64 "%s", keysize_, PRIu64);
+    int n =
+      snprintf(keyfmt_, KEYFMT_SIZE, "%%0%" PRIu64 "%s", keysize_, PRIu64);
     if (uint64_t(n) >= KEYFMT_SIZE) {
-        throw runtime_error(
-          "MemcacheLoad::MemcacheLoad: fmt buffer for printing keys too small");
+        throw runtime_error("MemcacheLoad::MemcacheLoad: fmt buffer for "
+                            "printing keys too small");
     }
 }
 
@@ -237,8 +239,8 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
 
     // add request to wire
     MemcCmd op = quiet ? MemcCmd::Setq : MemcCmd::Set;
-    sock_->write_emplace<MemcHeader>(MemcType::Request, op,
-                                     sizeof(MemcExtrasSet), keysize_, valsize_);
+    sock_->write_emplace<MemcHeader>(
+      MemcType::Request, op, sizeof(MemcExtrasSet), keysize_, valsize_);
     sock_->write_emplace<MemcExtrasSet>();
     sock_->write(key, keysize_);
     sock_->write(val, valsize_);

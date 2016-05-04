@@ -22,7 +22,6 @@ using namespace std::placeholders;
 /* Size of fmt string for generating keys */
 static constexpr std::size_t KEYFMT_SIZE = 30;
 
-
 /* Key generation */
 static bool _kv_setup = false;
 static char _keyfmt[KEYFMT_SIZE];
@@ -47,9 +46,11 @@ Memcache::Memcache(const Config &cfg, std::mt19937 &&rand) noexcept
     if (not _kv_setup) {
         _kv_setup = true;
 
-        // create the fmt string for creating keys (TODO: better way than this?)
+        // create the fmt string for creating keys (TODO: better way than
+        // this?)
         // KEYFMT: <000000...N>
-        int n = snprintf(_keyfmt, KEYFMT_SIZE, "%%0%" PRIu64 "%s", cfg_.keysize, PRIu64);
+        int n = snprintf(_keyfmt, KEYFMT_SIZE, "%%0%" PRIu64 "%s",
+                         cfg_.keysize, PRIu64);
         if (uint64_t(n) >= KEYFMT_SIZE) {
             throw runtime_error(
               "Memcache::Memcache: fmt buffer for printing keys too small");
@@ -58,7 +59,7 @@ Memcache::Memcache(const Config &cfg, std::mt19937 &&rand) noexcept
         // create keys
         _keys = new char[cfg_.records * (cfg_.keysize + 1)];
         for (size_t i = 1; i <= cfg_.records; i++) {
-            char * buf = &_keys[(i - 1) * (cfg_.keysize + 1)];
+            char *buf = &_keys[(i - 1) * (cfg_.keysize + 1)];
             snprintf(buf, cfg_.keysize + 1, _keyfmt, i);
         }
 

@@ -62,6 +62,7 @@ struct Config {
     /* Set defaults */
     Config(void)
       : protocol{SYNTHETIC}
+      , addr{}
       , port{0}
       , label{"default"}
       , service_us{0}

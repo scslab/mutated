@@ -37,9 +37,9 @@ class MemcacheLoad
     const char *next_val(uint64_t seqid);
 
   public:
-    MemcacheLoad(const char *addr, unsigned short port, uint64_t toload, uint64_t keysize,
-                 uint64_t valsize, uint64_t startid, uint64_t batch,
-                 uint64_t notify);
+    MemcacheLoad(const char *addr, unsigned short port, uint64_t toload,
+                 uint64_t keysize, uint64_t valsize, uint64_t startid,
+                 uint64_t batch, uint64_t notify);
     void run(void);
 };
 

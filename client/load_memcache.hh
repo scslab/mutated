@@ -9,7 +9,8 @@
 class MemcacheLoad
 {
   private:
-    static constexpr std::size_t KEYSIZE = 30;
+    /* Size of fmt string for generating keys */
+    static constexpr std::size_t KEYFMT_SIZE = 30;
 
     unsigned int epollfd_;
     std::unique_ptr<Sock> sock_;
@@ -17,7 +18,10 @@ class MemcacheLoad
     uint64_t toload_;
     uint64_t sent_;
     uint64_t recv_;
+    uint64_t keysize_;
     uint64_t valsize_;
+    char keyfmt_[KEYFMT_SIZE];
+    std::unique_ptr<char[]> key_;
     std::unique_ptr<char[]> val_;
     uint64_t seqid_;
     uint64_t batch_;
@@ -33,7 +37,7 @@ class MemcacheLoad
     const char *next_val(uint64_t seqid);
 
   public:
-    MemcacheLoad(const char *addr, unsigned short port, uint64_t toload,
+    MemcacheLoad(const char *addr, unsigned short port, uint64_t toload, uint64_t keysize,
                  uint64_t valsize, uint64_t startid, uint64_t batch,
                  uint64_t notify);
     void run(void);

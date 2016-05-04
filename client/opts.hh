@@ -51,6 +51,7 @@ struct Config {
 
     /* Memcache options */
     uint64_t records; /* number of records to use */
+    uint64_t keysize; /* size of keys (for gets/sets) */
     uint64_t valsize; /* size of values (for sets) */
     double setget;    /* set/get ratio */
 
@@ -75,6 +76,7 @@ struct Config {
       , service_dist{EXPONENTIAL}
       , missed_window_us{100}
       , records{10000}
+      , keysize{30}
       , valsize{4 * 1024}
       , setget{0.0}
       , gen_argc{0}

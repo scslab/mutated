@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <functional>
@@ -35,7 +36,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << endl;
     cerr << "Options:" << endl;
     cerr << "  -h    : help" << endl;
-    cerr << "  -k INT: number of keys to load (default: 10K)" << endl;
+    cerr << "  -z INT: number of keys to load (default: 10K)" << endl;
+    cerr << "  -k INT: size of the keys (default: 30)" << endl;
     cerr << "  -v INT: size of the values (default: 4KB)" << endl;
     cerr << "  -n INT: starting key sequence number (default: 1)" << endl;
     cerr << "  -b INT: load batch size to use (default: 100)" << endl;
@@ -55,6 +57,7 @@ class Config
     char addr[256];  /* the server address */
     uint16_t port;   /* the server port */
     uint64_t keys;   /* number of keys to load */
+    uint64_t keyn;   /* length of keys */
     uint64_t valn;   /* length of values */
     uint64_t start;  /* starting sequence number */
     uint64_t batch;  /* load batch size */
@@ -69,6 +72,7 @@ class Config
 Config::Config(int argc, char *argv[])
   : port{0}
   , keys{10000}
+  , keyn{30}
   , valn{4 * 1024}
   , start{1}
   , batch{100}
@@ -77,12 +81,16 @@ Config::Config(int argc, char *argv[])
     int ret, c;
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "hk:v:n:b:e:")) != -1) {
+    while ((c = getopt(argc, argv, "hz:k:v:n:b:e:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
-        case 'k':
+            break;
+        case 'z':
             keys = atoi(optarg);
+            break;
+        case 'k':
+            keyn = atoi(optarg);
             break;
         case 'v':
             valn = atoi(optarg);
@@ -105,6 +113,12 @@ Config::Config(int argc, char *argv[])
         __printUsage(argv[0]);
     }
 
+    uint64_t len = log10(keys);
+    if (len > keyn) {
+        cerr << "Need a larger key size for the number of keys requested!" << endl;
+        exit(1);
+    }
+
     // NOTE: keep 255 in sync with addr buffer size.
     ret = sscanf(argv[optind + 0], "%255[^:]:%20hu", addr, &port);
     if (ret != 2) {
@@ -118,7 +132,7 @@ Config::Config(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     Config cfg(argc, argv);
-    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.valn, cfg.start,
+    MemcacheLoad mem(cfg.addr, cfg.port, cfg.keys, cfg.keyn, cfg.valn, cfg.start,
                      cfg.batch, cfg.notify);
     mem.run();
     return EXIT_SUCCESS;
@@ -127,8 +141,8 @@ int main(int argc, char *argv[])
 /**
  * Construct a new memcache data loader.
  */
-MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
-                           uint64_t toload, uint64_t valsize, uint64_t startid,
+MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port, uint64_t toload,
+                           uint64_t keysize, uint64_t valsize, uint64_t startid,
                            uint64_t batch, uint64_t notify)
   : epollfd_{system_call(epoll_create1(0), "MemcacheLoad: epoll_create1()")}
   , sock_{make_unique<Sock>()}
@@ -136,7 +150,10 @@ MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
   , toload_{toload}
   , sent_{0}
   , recv_{0}
+  , keysize_{keysize}
   , valsize_{valsize}
+  , keyfmt_{}
+  , key_{make_unique<char[]>(keysize_ + 1)}
   , val_{make_unique<char[]>(valsize_)}
   , seqid_{startid}
   , batch_{batch}
@@ -146,6 +163,14 @@ MemcacheLoad::MemcacheLoad(const char *addr, unsigned short port,
     sock_->connect(addr, port);
     epoll_watch(sock_->fd(), nullptr, EPOLLIN | EPOLLOUT);
     memset(val_.get(), 'a', valsize_);
+
+    // create the fmt string for creating keys (TODO: better way than this?)
+    // KEYFMT: <000000...N>
+    int n = snprintf(keyfmt_, KEYFMT_SIZE, "%%0%" PRIu64 "%s", keysize_, PRIu64);
+    if (uint64_t(n) >= KEYFMT_SIZE) {
+        throw runtime_error(
+          "MemcacheLoad::MemcacheLoad: fmt buffer for printing keys too small");
+    }
 }
 
 /**
@@ -194,9 +219,8 @@ void MemcacheLoad::run(void)
 
 const char *MemcacheLoad::next_key(uint64_t seqid)
 {
-    static char key[KEYSIZE + 1]; // +1 for '\0'
-    snprintf(key, KEYSIZE + 1, "key-%026" PRIu64, seqid);
-    return key;
+    snprintf(key_.get(), keysize_ + 1, keyfmt_, seqid);
+    return key_.get();
 }
 
 const char *MemcacheLoad::next_val(uint64_t seqid)
@@ -214,9 +238,9 @@ void MemcacheLoad::send_request(uint64_t seqid, bool quiet)
     // add request to wire
     MemcCmd op = quiet ? MemcCmd::Setq : MemcCmd::Set;
     sock_->write_emplace<MemcHeader>(MemcType::Request, op,
-                                     sizeof(MemcExtrasSet), KEYSIZE, valsize_);
+                                     sizeof(MemcExtrasSet), keysize_, valsize_);
     sock_->write_emplace<MemcExtrasSet>();
-    sock_->write(key, KEYSIZE);
+    sock_->write(key, keysize_);
     sock_->write(val, valsize_);
 
     // try transmission

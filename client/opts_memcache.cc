@@ -47,7 +47,8 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
          << endl;
     cerr << endl;
     cerr << "Memcache options:" << endl;
-    cerr << "  -k   INT: number of records to use" << endl;
+    cerr << "  -z   INT: number of keys to use (default: 10K)" << endl;
+    cerr << "  -k   INT: size of the keys (default: 30)" << endl;
     cerr << "  -v   INT: size of the values (default: 4KB)" << endl;
     cerr << "  -u FLOAT: ratio of set:get commands (default: 0.0)" << endl;
     cerr << endl;
@@ -71,7 +72,7 @@ Config parse_memcache(int argc, char *argv[])
     // unused options
     cfg.service_us = 0;
 
-    while ((c = getopt(argc, argv, "hrew:s:c:W:l:m:d:n:k:v:u:")) != -1) {
+    while ((c = getopt(argc, argv, "hrew:s:c:W:l:m:d:n:z:k:v:u:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -119,8 +120,11 @@ Config parse_memcache(int argc, char *argv[])
         case 'n':
             cfg.conn_cnt = atoi(optarg);
             break;
-        case 'k':
+        case 'z':
             cfg.records = atoll(optarg);
+            break;
+        case 'k':
+            cfg.keysize = atoll(optarg);
             break;
         case 'v':
             cfg.valsize = atoll(optarg);

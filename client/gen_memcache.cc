@@ -19,22 +19,15 @@ using namespace std::placeholders;
 // - Support choosing key with a distribution
 // - Support variable value size with SET workload (distribution)
 
-static constexpr std::size_t KEYLEN = 30;
-using keyarray =
-  char (*)[KEYLEN + 1]; // can't type without a typdef it seems...
+/* Size of fmt string for generating keys */
+static constexpr std::size_t KEYFMT_SIZE = 30;
 
+
+/* Key generation */
 static bool _kv_setup = false;
-static keyarray _keys = nullptr;
+static char _keyfmt[KEYFMT_SIZE];
+static char *_keys = nullptr;
 static char *_val = nullptr;
-
-/**
- * Create a memcache request for a given key id.
- */
-static void create_key(char *buf, uint64_t id)
-{
-    static_assert(KEYLEN >= 30, "keys are 30 chars long, not enough space");
-    snprintf(buf, KEYLEN + 1, "key-%026" PRIu64, id);
-}
 
 /**
  * Construct.
@@ -53,12 +46,25 @@ Memcache::Memcache(const Config &cfg, std::mt19937 &&rand) noexcept
     // create all needed requests upfront
     if (not _kv_setup) {
         _kv_setup = true;
-        _keys = new char[cfg.records][KEYLEN + 1];
-        for (size_t i = 1; i <= cfg.records; i++) {
-            create_key(_keys[i - 1], i);
+
+        // create the fmt string for creating keys (TODO: better way than this?)
+        // KEYFMT: <000000...N>
+        int n = snprintf(_keyfmt, KEYFMT_SIZE, "%%0%" PRIu64 "%s", cfg_.keysize, PRIu64);
+        if (uint64_t(n) >= KEYFMT_SIZE) {
+            throw runtime_error(
+              "Memcache::Memcache: fmt buffer for printing keys too small");
         }
-        _val = new char[cfg.valsize];
-        memset(_val, 'a', cfg.valsize);
+
+        // create keys
+        _keys = new char[cfg_.records * (cfg_.keysize + 1)];
+        for (size_t i = 1; i <= cfg_.records; i++) {
+            char * buf = &_keys[(i - 1) * (cfg_.keysize + 1)];
+            snprintf(buf, cfg_.keysize + 1, _keyfmt, i);
+        }
+
+        // create value(s)
+        _val = new char[cfg_.valsize];
+        memset(_val, 'a', cfg_.valsize);
     }
 }
 
@@ -73,8 +79,8 @@ MemcCmd Memcache::choose_cmd(void)
 
 char *Memcache::choose_key(uint64_t id, uint16_t &n)
 {
-    n = KEYLEN;
-    return _keys[id % cfg_.records];
+    n = cfg_.keysize;
+    return &_keys[(id % cfg_.records) * (cfg_.keysize + 1)];
 }
 
 char *Memcache::choose_val(uint64_t id, uint32_t &n)

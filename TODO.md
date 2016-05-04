@@ -14,11 +14,6 @@ Todo notes for mutated.
 * Should the rx loop be run till blocking? Or is their a live-lock issue with
   this approach?
 
-## Style
-
-* Type names all start upper-case.
-* Class members end in underscore.
-
 ## Cross-OS
 
 * Support FreeBSD/OSX.

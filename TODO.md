@@ -2,6 +2,13 @@
 
 Todo notes for mutated.
 
+## Project
+
+* Travis CI
+* Tests!
+* Coveralls
+* Coverity
+
 ## Core
 
 * Better sizing approach to buffers (charbuf and request queues).

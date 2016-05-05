@@ -1,11 +1,8 @@
-# TODO: Better way of having multiple protocols
-
-AM_CPPFLAGS = -D_REENTRANT -I$(srcdir)/../libserver
+AM_CPPFLAGS = -D_REENTRANT
 LDADD = -lpthread
 
 bin_PROGRAMS = mutated_synthetic mutated_memcache load_memcache test1
 
-mutated_synthetic_LDADD = $(srcdir)/../libserver/libserver.la
 mutated_synthetic_SOURCES = \
     mutated_synthetic.cc \
 	accum.hh accum.cc \
@@ -17,7 +14,6 @@ mutated_synthetic_SOURCES = \
 	socket_buf.hh socket_buf.cc \
 	util.hh
 
-mutated_memcache_LDADD = $(srcdir)/../libserver/libserver.la
 mutated_memcache_SOURCES = \
     mutated_memcache.cc \
 	accum.hh accum.cc \

@@ -16,6 +16,9 @@ Mutated is BSD-licensed.
 Currently we support our own synthetic protocol, and memcache. Adding new
 protocols should be fairly easy at this point.
 
+To evaluate against the synthetic protocol, you should grab our collection of
+servers supporting it from [ghola](http://github.com/scslab/ghola).
+
 ## Using
 
 We split each supported protocol into its own binary for now so as to keep the

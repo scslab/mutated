@@ -1,9 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-if LIBEVENTM_OPT
-    MAYBE_LIBEVENTM = libeventm
-endif
-SUBDIRS = $(MAYBE_LIBEVENTM) libserver servers client
+SUBDIRS = client
 
 TESTS = \
 	test/sample.test
@@ -53,7 +50,7 @@ cppcheck:
 		--enable=performance \
 		--enable=portability \
 		--enable=style \
-		client libserver servers 2> cppcheck.err 1>/dev/null
+		client 2> cppcheck.err 1>/dev/null
 	@echo "Finished! (check cppcheck.err)..."
 	@echo ""
 	@head cppcheck.err

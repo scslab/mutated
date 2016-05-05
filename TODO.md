@@ -4,7 +4,6 @@ Todo notes for mutated.
 
 ## Core
 
-* Detect when you haven't fetch git submodules.
 * Better sizing approach to buffers (charbuf and request queues).
 * Cleanup how multiple protocols are supported.
 * Pull common code out of client into own lib.

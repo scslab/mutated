@@ -123,7 +123,7 @@ struct MemcHeader {
         opaque = ntohl(opaque);
         version = ntohll(opaque);
     }
-};
+} __attribute__((packed));
 
 /**
  * Construct a new memcache request header.

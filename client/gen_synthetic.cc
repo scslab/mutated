@@ -7,7 +7,6 @@
 #include <errno.h>
 
 #include "gen_synthetic.hh"
-#include "protocol.hh"
 #include "socket_buf.hh"
 #include "util.hh"
 

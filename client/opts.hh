@@ -32,6 +32,8 @@ struct Config {
     bool machine_readable; /* generate machine readable output? */
     bool use_epoll_spin;   /* use the custom epoll_spin() system call */
 
+    const char *save_iatimes; /* record iatimes to a file */
+
     enum conn_modes {
         PER_REQUEST,
         ROUND_ROBIN,
@@ -72,6 +74,7 @@ struct Config {
       , samples{0}
       , machine_readable{false}
       , use_epoll_spin{false}
+      , save_iatimes{}
       , conn_mode{ROUND_ROBIN}
       , conn_cnt{10}
       , service_dist{EXPONENTIAL}

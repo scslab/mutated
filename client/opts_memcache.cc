@@ -33,6 +33,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -h    : help" << endl;
     cerr << "  -r    : print raw samples" << endl;
     cerr << "  -e    : use Shinjuku's epoll_spin() system call" << endl;
+    cerr << "  -i STR: file to save inter-arrival times to" << endl;
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
     cerr << "  -s INT: measurement seconds (default: 10s)" << endl;
@@ -72,7 +73,7 @@ Config parse_memcache(int argc, char *argv[])
     // unused options
     cfg.service_us = 0;
 
-    while ((c = getopt(argc, argv, "hrew:s:c:W:l:m:d:n:z:k:v:u:")) != -1) {
+    while ((c = getopt(argc, argv, "hrei:w:s:c:W:l:m:d:n:z:k:v:u:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -81,6 +82,9 @@ Config parse_memcache(int argc, char *argv[])
             break;
         case 'e':
             cfg.use_epoll_spin = true;
+            break;
+        case 'i':
+            cfg.save_iatimes = optarg;
             break;
         case 'w':
             cfg.warmup_seconds = atoi(optarg);

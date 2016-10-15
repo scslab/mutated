@@ -51,6 +51,7 @@ class Client
     void setup_deadlines(void);
     void setup_experiment(void);
     void print_summary(void);
+    void record_iatimes(void);
 
   public:
     explicit Client(Config c);

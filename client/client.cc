@@ -1,5 +1,5 @@
+#include <fstream>
 #include <functional>
-#include <iostream>
 
 #include <inttypes.h>
 #include <fcntl.h>
@@ -288,6 +288,7 @@ void Client::record_sample(Generator *conn, uint64_t queue_us,
     rcvd_count_++;
     if (rcvd_count_ >= total_samples_) {
         print_summary();
+        record_iatimes();
         exit(EXIT_SUCCESS);
     }
 }
@@ -344,4 +345,24 @@ void Client::print_summary(void)
     printf("TX: %.2f MB/s (%.2f MB)\n", tx_mbs / time_s, tx_mbs);
     printf("Missed sends: %lu / %lu (%.4f%%)\n", missed_send_, sent_count_,
            double(missed_send_) / sent_count_ * 100);
+}
+
+/**
+ * Record our deadline schedule to a file for offline evaluation.
+ */
+void Client::record_iatimes(void)
+{
+    if (cfg_.save_iatimes != nullptr) {
+        duration last{0};
+        ofstream f(cfg_.save_iatimes);
+        for (auto t : deadlines_) {
+            if (last == duration(0)) {
+                last = t;
+            } else {
+                f << (t - last).count() << "\n";
+                last = t;
+            }
+        }
+        f.close();
+    }
 }

@@ -63,7 +63,7 @@ class Memcache : public Generator
     uint64_t _send_request(bool measure, RequestCB cb) override;
 
   public:
-    Memcache(const Config &cfg, std::mt19937 &&rand) noexcept;
+    Memcache(const Config &cfg, std::mt19937 &&rand);
     ~Memcache(void) noexcept {}
 
     /* No copy or move */

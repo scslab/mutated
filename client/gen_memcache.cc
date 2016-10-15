@@ -31,7 +31,7 @@ static char *_val = nullptr;
 /**
  * Construct.
  */
-Memcache::Memcache(const Config &cfg, std::mt19937 &&rand) noexcept
+Memcache::Memcache(const Config &cfg, std::mt19937 &&rand)
   : cfg_{cfg},
     rand_{move(rand)},
     setget_{0, 1.0},

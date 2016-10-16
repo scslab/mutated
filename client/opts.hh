@@ -51,6 +51,9 @@ struct Config {
 
     uint64_t missed_window_us; /* packet late send threshold */
 
+    /* Synthetic options */
+    bool send_only; /* only send requests, don't expect response */
+
     /* Memcache options */
     uint64_t records; /* number of records to use */
     uint64_t keysize; /* size of keys (for gets/sets) */
@@ -79,6 +82,7 @@ struct Config {
       , conn_cnt{10}
       , service_dist{EXPONENTIAL}
       , missed_window_us{100}
+      , send_only{false}
       , records{10000}
       , keysize{30}
       , valsize{4 * 1024}

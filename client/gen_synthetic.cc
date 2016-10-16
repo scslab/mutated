@@ -54,12 +54,14 @@ uint64_t Synthetic::_send_request(bool measure, RequestCB cb)
         // contiguous
         req_pkt *pkt = (req_pkt *)wptrs.first;
         pkt->tag = (uint64_t)&req;
+        pkt->noreply = cfg_.send_only;
         pkt->nr = 1;
         pkt->delays[0] = req.service_us;
     } else {
         // fragmented
         req_pkt pkt;
         pkt.tag = (uint64_t)&req;
+        pkt.noreply = cfg_.send_only;
         pkt.nr = 1;
         pkt.delays[0] = req.service_us;
         memcpy(wptrs.first, &pkt, n1);
@@ -77,6 +79,11 @@ uint64_t Synthetic::_send_request(bool measure, RequestCB cb)
     // add response to read queue
     IORx io(sizeof(resp_pkt), rcb_, 0, nullptr, &req);
     sock_.read(io);
+
+    // fake response if send-only mode
+    if (cfg_.send_only) {
+        req.cb(this, 0, 0, 0, 0, measure);
+    }
 
     return n;
 }

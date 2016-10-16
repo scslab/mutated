@@ -17,7 +17,7 @@ static constexpr size_t REQ_MAX_DELAYS = 16;
  */
 struct req_pkt {
     int nr;                          /* the number of delays */
-    int pad;
+    int noreply;
     uint64_t tag;                    /* a unique indentifier for the request */
     uint64_t delays[REQ_MAX_DELAYS]; /* an array of delays */
 } __attribute__((packed));

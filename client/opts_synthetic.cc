@@ -48,6 +48,9 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
             "mode)"
          << endl;
     cerr << endl;
+    cerr << "Synthetic options:" << endl;
+    cerr << "  -z    : send requests only, don't expect response" << endl;
+    cerr << endl;
     cerr << "  connection modes: per_request, round_robin, random" << endl;
     cerr << "  service distribution: fixed, exp, lognorm" << endl;
 
@@ -65,7 +68,7 @@ Config parse_synthetic(int argc, char *argv[])
 
     cfg.protocol = Config::SYNTHETIC;
 
-    while ((c = getopt(argc, argv, "hrei:w:s:c:W:l:m:d:n:")) != -1) {
+    while ((c = getopt(argc, argv, "hrezi:w:s:c:W:l:m:d:n:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -74,6 +77,9 @@ Config parse_synthetic(int argc, char *argv[])
             break;
         case 'e':
             cfg.use_epoll_spin = true;
+            break;
+        case 'z':
+            cfg.send_only = true;
             break;
         case 'i':
             cfg.save_iatimes = optarg;

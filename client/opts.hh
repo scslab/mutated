@@ -31,6 +31,7 @@ struct Config {
 
     bool machine_readable; /* generate machine readable output? */
     bool use_epoll_spin;   /* use the custom epoll_spin() system call */
+    bool use_busy_timer;   /* busy spin for timers, not events */
 
     const char *save_iatimes; /* record iatimes to a file */
 
@@ -77,6 +78,7 @@ struct Config {
       , samples{0}
       , machine_readable{false}
       , use_epoll_spin{false}
+      , use_busy_timer{false}
       , save_iatimes{}
       , conn_mode{ROUND_ROBIN}
       , conn_cnt{10}

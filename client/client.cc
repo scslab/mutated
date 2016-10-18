@@ -1,5 +1,6 @@
 #include <fstream>
 #include <functional>
+#include <string>
 
 #include <inttypes.h>
 #include <fcntl.h>
@@ -95,6 +96,10 @@ void Client::run(void)
     // Maximum outstanding epoll events supported
     constexpr size_t MAX_EVENTS = 4096;
     epoll_event events[MAX_EVENTS];
+    int epoll_timeout = -1;
+    if (cfg_.use_busy_timer) {
+        epoll_timeout = 0;
+    }
 
     setup_experiment();
 
@@ -102,21 +107,28 @@ void Client::run(void)
         int nfds;
 
         if (cfg_.use_epoll_spin) {
-            nfds = system_call(epoll_spin(epollfd_, events, MAX_EVENTS, -1),
-                               "Client::run: epoll_spin()");
+            nfds = system_call(epoll_spin(epollfd_, events, MAX_EVENTS,
+                               epoll_timeout), "Client::run: epoll_spin()");
         } else {
-            nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS, -1),
-                               "Client::run: epoll_wait()");
+            nfds = system_call(epoll_wait(epollfd_, events, MAX_EVENTS,
+                               epoll_timeout), "Client::run: epoll_wait()");
         }
 
         for (int i = 0; i < nfds; i++) {
             epoll_event &ev = events[i];
             if (ev.data.ptr == nullptr) {
+                if (cfg_.use_busy_timer) {
+                    throw runtime_error("timer event when using busy timer");
+                }
                 timer_handler();
             } else {
                 Generator *g = reinterpret_cast<Generator *>(ev.data.ptr);
                 g->run_io(ev.events);
             }
+        }
+
+        if (cfg_.use_busy_timer) {
+            busy_timer();
         }
     }
 }
@@ -126,7 +138,9 @@ void Client::setup_experiment(void)
     setup_connections();
     setup_deadlines();
     exp_start_time_ = clock::now();
-    timer_handler();
+    if (not cfg_.use_busy_timer) {
+        timer_handler();
+    }
 }
 
 void Client::setup_deadlines(void)
@@ -244,6 +258,21 @@ void Client::timer_handler(void)
         if (sent_count_ >= total_samples_) {
             return;
         }
+    }
+}
+
+void Client::busy_timer(void)
+{
+    time_point now = clock::now();
+    duration d = deadlines_[sent_count_] + exp_start_time_ - now;
+
+    while (d <= duration(0) and sent_count_ < total_samples_) {
+        if (d < missed_threshold_) {
+            missed_send_++;
+        }
+        send_request();
+        sent_count_++;
+        d = deadlines_[sent_count_] + exp_start_time_ - now;
     }
 }
 

@@ -48,6 +48,7 @@ class Client
     void epoll_watch(int fd, void *data, uint32_t events);
     void timer_arm(duration deadline);
     void timer_handler(void);
+    void busy_timer(void);
     void setup_deadlines(void);
     void setup_experiment(void);
     void print_summary(void);

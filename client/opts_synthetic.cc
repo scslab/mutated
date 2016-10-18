@@ -34,6 +34,7 @@ static void __printUsage(string prog, int status = EXIT_FAILURE)
     cerr << "  -h    : help" << endl;
     cerr << "  -r    : print raw samples" << endl;
     cerr << "  -e    : use Shinjuku's epoll_spin() system call" << endl;
+    cerr << "  -b    : use busy spin for timers" << endl;
     cerr << "  -i STR: file to save inter-arrival times to" << endl;
     cerr << "  -w INT: warm-up seconds (default: 5s)" << endl;
     cerr << "  -c INT: cool-down seconds (default: 5s)" << endl;
@@ -68,7 +69,7 @@ Config parse_synthetic(int argc, char *argv[])
 
     cfg.protocol = Config::SYNTHETIC;
 
-    while ((c = getopt(argc, argv, "hrezi:w:s:c:W:l:m:d:n:")) != -1) {
+    while ((c = getopt(argc, argv, "hrebzi:w:s:c:W:l:m:d:n:")) != -1) {
         switch (c) {
         case 'h':
             __printUsage(argv[0], EXIT_SUCCESS);
@@ -77,6 +78,9 @@ Config parse_synthetic(int argc, char *argv[])
             break;
         case 'e':
             cfg.use_epoll_spin = true;
+            break;
+        case 'b':
+            cfg.use_busy_timer = true;
             break;
         case 'z':
             cfg.send_only = true;

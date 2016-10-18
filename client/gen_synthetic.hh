@@ -10,14 +10,14 @@
 #include "opts.hh"
 #include "socket_buf.hh"
 
-static constexpr size_t REQ_MAX_DELAYS = 16;
+static constexpr uint32_t REQ_MAX_DELAYS = 16;
 
 /**
  * Synthetic protocol request type.
  */
 struct req_pkt {
-    int nr;                          /* the number of delays */
-    int noreply;
+    uint32_t nr;                     /* the number of delays */
+    uint32_t noreply;                /* should the server send a reply? */
     uint64_t tag;                    /* a unique indentifier for the request */
     uint64_t delays[REQ_MAX_DELAYS]; /* an array of delays */
 } __attribute__((packed));
